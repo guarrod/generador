@@ -1,0 +1,33 @@
+:root {
+    --primary: #160f41;
+    --secondary: #D2006E;
+    --background: #160f41;
+    --white: #FFFFFF;
+    --text-main: #FFFFFF;
+    --text-muted: #A1A1AA;
+    --border: rgba(255, 255, 255, 0.1);
+    --error: #FB7185;
+    --success: #34D399;
+}
+
+body {
+    background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.05) 1px, transparent 0);
+    background-size: 24px 24px;
+}
+
+.dark body {
+    background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.overflow-x-auto::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.overflow-x-auto {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
