@@ -1,28 +1,65 @@
+const chip = text => `<code class="bg-slate-100 dark:bg-white/10 px-1 rounded text-secondary font-mono">${text}</code>`;
+
 const APP_CONFIG = {
-    storageKey: 'bg_generator_data',
-    filenameKey: 'bg_generator_filename',
     themeKey: 'bg_generator_theme',
     sidebarKey: 'bg_generator_sidebar',
-    columns: [
-        { id: 'codigo', label: 'Código', placeholder: 'Cuenta, suministro...', rule: /^[a-zA-Z0-9]{0,50}$/, error: 'Máx 50 caracteres alfanuméricos' },
-        { id: 'descripcion', label: 'Descripción', placeholder: 'Ref. pago...', rule: /^[a-zA-Z0-9\s]{0,100}$/, error: 'Máx 100 caracteres alfanuméricos' },
-        { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA / TAR', rule: /^(CTA|TAR)$/i, error: 'Debe ser CTA o TAR' },
-        { id: 'tipo', label: 'Tipo Cta/Tar', placeholder: 'CTE, AHO, A, V, M', rule: /^(CTE|AHO|A|V|M)$/i, error: 'CTE, AHO, A, V o M' },
-        { id: 'numero', label: 'Nº Cta/Tar', placeholder: '0123456789', rule: /^\d{0,20}$/, error: 'Máx 20 números' },
-        { id: 'monto', label: 'Monto Máx', placeholder: 'Opcional (9999999)', rule: /^\d{0,7}$/, error: 'Máx 7 números', optional: true },
-        { id: 'email', label: 'Email', placeholder: 'usuario@mail.com', rule: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, optional: true },
-        { id: 'telefono', label: 'Teléfono', placeholder: '0999999999', rule: /^\d{0,10}$/, optional: true }
-    ],
-    defaultRows: 1
+    activeGeneratorKey: 'bg_generator_active',
+    defaultRows: 1,
+    generators: [
+        {
+            id: 'pago_servicios',
+            label: 'Pago de Servicios',
+            title: 'Generador de Carga Masiva para Pago de Servicios',
+            description: 'Los cambios se guardan automáticamente en tu navegador.',
+            storageKey: 'bg_gen_pago_servicios_data',
+            filenameKey: 'bg_gen_pago_servicios_filename',
+            defaultFilename: 'carga_masiva',
+            columns: [
+                { id: 'codigo', label: 'Código', placeholder: 'Cuenta, suministro...', rule: /^[a-zA-Z0-9]{0,50}$/, error: 'Máx 50 caracteres alfanuméricos' },
+                { id: 'descripcion', label: 'Descripción', placeholder: 'Ref. pago...', rule: /^[a-zA-Z0-9\s]{0,100}$/, error: 'Máx 100 caracteres alfanuméricos' },
+                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA / TAR', rule: /^(CTA|TAR)$/i, error: 'Debe ser CTA o TAR' },
+                { id: 'tipo', label: 'Tipo Cta/Tar', placeholder: 'CTE, AHO, A, V, M', rule: /^(CTE|AHO|A|V|M)$/i, error: 'CTE, AHO, A, V o M' },
+                { id: 'numero', label: 'Nº Cta/Tar', placeholder: '0123456789', rule: /^\d{0,20}$/, error: 'Máx 20 números' },
+                { id: 'monto', label: 'Monto Máx', placeholder: 'Opcional (9999999)', rule: /^\d{0,7}$/, error: 'Máx 7 números', optional: true },
+                { id: 'email', label: 'Email', placeholder: 'usuario@mail.com', rule: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, optional: true },
+                { id: 'telefono', label: 'Teléfono', placeholder: '0999999999', rule: /^\d{0,10}$/, optional: true }
+            ],
+            recommendations: {
+                items: [
+                    { label: 'Código', html: 'Hasta 50 caracteres (Cuenta, Predio, etc).' },
+                    { label: 'Forma de Pago', html: `Use ${chip('CTA')} para Débito o ${chip('TAR')} para Tarjeta.` },
+                    { label: 'Tipo', html: `${chip('CTE')}, ${chip('AHO')}, ${chip('A')}, ${chip('V')} o ${chip('M')}.` },
+                    { label: 'Nº Cuenta', html: 'Solo números, hasta 20 dígitos.' },
+                    { label: 'Monto Máx', html: 'Opcional. Por defecto 9999999.' }
+                ],
+                tip: 'Puedes copiar desde Excel y pegar directamente en la primera celda.'
+            }
+        },
+        {
+            id: 'generador_2',
+            label: 'Generador 2',
+            title: 'Próximamente',
+            description: 'Este generador estará disponible próximamente.',
+            storageKey: null,
+            filenameKey: null,
+            defaultFilename: null,
+            columns: null,
+            recommendations: null
+        }
+    ]
 };
 
-// State Management
+// State
+let activeGeneratorIndex = parseInt(localStorage.getItem(APP_CONFIG.activeGeneratorKey) || '0');
 let gridData = [];
-let currentFilename = 'carga_masiva';
+let currentFilename = '';
 let currentTheme = localStorage.getItem(APP_CONFIG.themeKey) || 'dark';
 let isSidebarVisible = localStorage.getItem(APP_CONFIG.sidebarKey) !== 'false';
 
 // DOM Elements
+const tabsContainer = document.getElementById('tabs-container');
+const generatorTitle = document.getElementById('generator-title');
+const generatorDescription = document.getElementById('generator-description');
 const gridHeader = document.getElementById('grid-header');
 const gridBody = document.getElementById('grid-body');
 const inputFilename = document.getElementById('input-filename');
@@ -37,32 +74,71 @@ const sidebarPanel = document.getElementById('sidebar-panel');
 const layoutWrapper = document.getElementById('layout-wrapper');
 const rowCountDisplay = document.getElementById('row-count');
 const statusMessage = document.getElementById('status-message');
+const footerActions = document.getElementById('footer-actions');
 
-// Initialize
+function getActiveConfig() {
+    return APP_CONFIG.generators[activeGeneratorIndex];
+}
+
 function init() {
     applyTheme(currentTheme);
     applySidebarState(isSidebarVisible);
     lucide.createIcons();
-    renderHeader();
+    renderTabs();
+    loadGenerator();
+}
+
+function loadGenerator() {
+    const gen = getActiveConfig();
+
+    generatorTitle.textContent = gen.title;
+    generatorDescription.textContent = gen.description;
+
     loadFromStorage();
 
-    // Set filename input
-    inputFilename.value = currentFilename;
+    renderSidebar();
 
-    if (gridData.length === 0) {
-        addRows(APP_CONFIG.defaultRows);
+    if (gen.columns) {
+        footerActions.classList.remove('hidden');
+        const savedFilename = gen.filenameKey ? localStorage.getItem(gen.filenameKey) : null;
+        currentFilename = savedFilename || gen.defaultFilename;
+        inputFilename.value = currentFilename;
+
+        renderHeader();
+        if (gridData.length === 0) {
+            addRows(APP_CONFIG.defaultRows);
+        } else {
+            renderGrid();
+        }
     } else {
-        renderGrid();
+        footerActions.classList.add('hidden');
+        renderHeader();
+        renderPlaceholder();
     }
+
     updateStats();
 }
 
+function renderTabs() {
+    tabsContainer.innerHTML = APP_CONFIG.generators.map((gen, i) => {
+        const isActive = i === activeGeneratorIndex;
+        const activeClass = 'bg-gradient-to-br from-secondary to-[#ec4899] text-white shadow-[0_4px_15px_-3px_rgba(210,0,110,0.4)]';
+        const inactiveClass = 'bg-white dark:bg-white/5 border border-slate-200 dark:border-border text-slate-500 dark:text-text-muted hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white';
+        return `<button class="px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${isActive ? activeClass : inactiveClass}" onclick="switchGenerator(${i})">${gen.label}</button>`;
+    }).join('');
+}
+
+function switchGenerator(index) {
+    if (index === activeGeneratorIndex) return;
+    activeGeneratorIndex = index;
+    localStorage.setItem(APP_CONFIG.activeGeneratorKey, index);
+    gridData = [];
+    renderTabs();
+    loadGenerator();
+}
+
 function applyTheme(theme) {
-    if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-    } else {
-        document.documentElement.classList.remove('dark');
-    }
+    document.documentElement.classList.toggle('dark', theme === 'dark');
     localStorage.setItem(APP_CONFIG.themeKey, theme);
     currentTheme = theme;
 }
@@ -93,14 +169,65 @@ function toggleSidebar() {
     applySidebarState(!isSidebarVisible);
 }
 
+function renderSidebar() {
+    const gen = getActiveConfig();
+    const sidebarContent = document.getElementById('sidebar-content');
+    const sidebarTip = document.getElementById('sidebar-tip');
+    const sidebarTipText = document.getElementById('sidebar-tip-text');
+
+    if (!gen.recommendations) {
+        sidebarContent.innerHTML = '<p class="text-sm text-slate-400 dark:text-white/30 italic">Sin recomendaciones disponibles.</p>';
+        sidebarTip.classList.add('hidden');
+        return;
+    }
+
+    sidebarContent.innerHTML = gen.recommendations.items.map(item => `
+        <div class="text-[0.9rem] text-slate-600 dark:text-text-muted leading-relaxed">
+            <strong class="block text-slate-900 dark:text-white">${item.label}:</strong>
+            ${item.html}
+        </div>
+    `).join('');
+
+    if (gen.recommendations.tip) {
+        sidebarTip.classList.remove('hidden');
+        sidebarTipText.textContent = gen.recommendations.tip;
+    } else {
+        sidebarTip.classList.add('hidden');
+    }
+}
+
 function renderHeader() {
-    gridHeader.innerHTML = APP_CONFIG.columns.map(col => `<th class="p-4 text-left font-bold border-b border-slate-200 dark:border-border text-slate-500 dark:text-text-muted text-[0.7rem] uppercase tracking-wider">${col.label}</th>`).join('');
+    const gen = getActiveConfig();
+    if (!gen.columns) {
+        gridHeader.innerHTML = '';
+        return;
+    }
+    gridHeader.innerHTML = gen.columns.map(col =>
+        `<th class="p-4 text-left font-bold border-b border-slate-200 dark:border-border text-slate-500 dark:text-text-muted text-[0.7rem] uppercase tracking-wider">${col.label}</th>`
+    ).join('');
+}
+
+function renderPlaceholder() {
+    gridBody.innerHTML = `
+        <tr>
+            <td colspan="20" class="py-24 text-center">
+                <div class="flex flex-col items-center gap-3 text-slate-400 dark:text-white/30">
+                    <i data-lucide="construction" class="w-9 h-9"></i>
+                    <p class="font-bold text-base">Próximamente</p>
+                    <p class="text-sm">Este generador estará disponible pronto.</p>
+                </div>
+            </td>
+        </tr>
+    `;
+    lucide.createIcons();
 }
 
 function addRows(count) {
+    const gen = getActiveConfig();
+    if (!gen.columns) return;
     for (let i = 0; i < count; i++) {
         const row = {};
-        APP_CONFIG.columns.forEach(col => row[col.id] = '');
+        gen.columns.forEach(col => row[col.id] = '');
         gridData.push(row);
     }
     renderGrid();
@@ -108,13 +235,19 @@ function addRows(count) {
 }
 
 function renderGrid() {
+    const gen = getActiveConfig();
+    if (!gen.columns) {
+        renderPlaceholder();
+        return;
+    }
+
     gridBody.innerHTML = '';
     gridData.forEach((rowData, rowIndex) => {
         const tr = document.createElement('tr');
         tr.dataset.rowIndex = rowIndex;
         tr.className = 'transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.02]';
 
-        APP_CONFIG.columns.forEach(col => {
+        gen.columns.forEach(col => {
             const td = document.createElement('td');
             td.className = 'border-b border-slate-200 dark:border-border p-0';
 
@@ -145,12 +278,15 @@ function updateCell(rowIndex, colId, value) {
 }
 
 function handlePaste(e) {
+    const gen = getActiveConfig();
+    if (!gen.columns) return;
+
     e.preventDefault();
     const pasteData = (e.clipboardData || window.clipboardData).getData('text');
     const rows = pasteData.split(/\r?\n/).filter(line => line.trim() !== '');
 
     const startRow = parseInt(e.target.closest('tr').dataset.rowIndex);
-    const startColIndex = APP_CONFIG.columns.findIndex(c => c.id === e.target.dataset.colId);
+    const startColIndex = gen.columns.findIndex(c => c.id === e.target.dataset.colId);
 
     rows.forEach((rowText, i) => {
         const cells = rowText.split('\t');
@@ -158,15 +294,14 @@ function handlePaste(e) {
 
         if (!gridData[targetRowIndex]) {
             const newRow = {};
-            APP_CONFIG.columns.forEach(col => newRow[col.id] = '');
+            gen.columns.forEach(col => newRow[col.id] = '');
             gridData.push(newRow);
         }
 
         cells.forEach((cellValue, j) => {
             const targetColIndex = startColIndex + j;
-            if (APP_CONFIG.columns[targetColIndex]) {
-                const colId = APP_CONFIG.columns[targetColIndex].id;
-                gridData[targetRowIndex][colId] = cellValue.trim();
+            if (gen.columns[targetColIndex]) {
+                gridData[targetRowIndex][gen.columns[targetColIndex].id] = cellValue.trim();
             }
         });
     });
@@ -176,6 +311,9 @@ function handlePaste(e) {
 }
 
 function validateGrid() {
+    const gen = getActiveConfig();
+    if (!gen.columns) return;
+
     let hasErrors = false;
     let hasContent = false;
 
@@ -192,7 +330,7 @@ function validateGrid() {
         hasContent = true;
         let rowValid = true;
 
-        APP_CONFIG.columns.forEach((col, colIndex) => {
+        gen.columns.forEach((col, colIndex) => {
             const input = tr.children[colIndex].firstChild;
             const value = row[col.id].trim();
 
@@ -214,11 +352,7 @@ function validateGrid() {
             }
         });
 
-        if (!rowValid) {
-            tr.classList.add('bg-red-500/5');
-        } else {
-            tr.classList.remove('bg-red-500/5');
-        }
+        tr.classList.toggle('bg-red-500/5', !rowValid);
     });
 
     btnDownload.disabled = hasErrors || !hasContent;
@@ -227,83 +361,78 @@ function validateGrid() {
 }
 
 function exportTxt() {
+    const gen = getActiveConfig();
+    if (!gen.columns) return;
+
     const validRows = gridData.filter(row => !Object.values(row).every(val => val.trim() === ''));
 
     const lines = validRows.map(row => {
-        const formatted = APP_CONFIG.columns.map(col => {
+        return gen.columns.map(col => {
             let val = row[col.id].trim();
-
-            // Force uppercase for specific fields
-            if (col.id === 'forma_pago' || col.id === 'tipo') {
-                val = val.toUpperCase();
-            }
-
-            // Format specific rules
-            if (col.id === 'monto') {
-                if (val === '') {
-                    val = '9999999';
-                } else {
-                    val = val + '00'; // Add cents only for entered values
-                }
-            }
-
+            if (col.id === 'forma_pago' || col.id === 'tipo') val = val.toUpperCase();
+            if (col.id === 'monto') val = val === '' ? '9999999' : val + '00';
             return val;
-        });
-        return formatted.join(',');
+        }).join(',');
     });
 
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentFilename || 'carga_masiva'}.txt`;
+    a.download = `${currentFilename || gen.defaultFilename}.txt`;
     a.click();
 
-    // Clear state after download as requested
     resetGrid();
 }
 
 function resetGrid() {
-    if (confirm('¿Estás seguro de que quieres borrar todos los datos?')) {
-        gridData = [];
-        currentFilename = 'carga_masiva';
+    const gen = getActiveConfig();
+    if (!confirm('¿Estás seguro de que quieres borrar todos los datos?')) return;
+
+    gridData = [];
+    if (gen.storageKey) localStorage.removeItem(gen.storageKey);
+
+    if (gen.columns) {
+        currentFilename = gen.defaultFilename;
+        if (gen.filenameKey) localStorage.removeItem(gen.filenameKey);
         inputFilename.value = currentFilename;
-        localStorage.removeItem(APP_CONFIG.storageKey);
-        localStorage.removeItem(APP_CONFIG.filenameKey);
         addRows(APP_CONFIG.defaultRows);
     }
 }
 
 function updateStats() {
+    const gen = getActiveConfig();
+    if (!gen.columns) {
+        rowCountDisplay.textContent = '';
+        statusMessage.textContent = '';
+        return;
+    }
     const count = gridData.filter(row => !Object.values(row).every(val => val.trim() === '')).length;
     rowCountDisplay.textContent = `${count} registros válidos`;
 }
 
 function saveToStorage() {
-    localStorage.setItem(APP_CONFIG.storageKey, JSON.stringify(gridData));
-    localStorage.setItem(APP_CONFIG.filenameKey, currentFilename);
+    const gen = getActiveConfig();
+    if (!gen.storageKey) return;
+    localStorage.setItem(gen.storageKey, JSON.stringify(gridData));
+    if (gen.filenameKey) localStorage.setItem(gen.filenameKey, currentFilename);
 }
 
 function loadFromStorage() {
-    const saved = localStorage.getItem(APP_CONFIG.storageKey);
-    const savedFilename = localStorage.getItem(APP_CONFIG.filenameKey);
-
-    if (saved) {
-        try {
-            gridData = JSON.parse(saved);
-        } catch (e) {
-            gridData = [];
-        }
+    const gen = getActiveConfig();
+    if (!gen.storageKey) {
+        gridData = [];
+        return;
     }
-    if (savedFilename) {
-        currentFilename = savedFilename;
+    try {
+        gridData = JSON.parse(localStorage.getItem(gen.storageKey) || '[]');
+    } catch (e) {
+        gridData = [];
     }
 }
 
 // Event Listeners
-btnThemeToggle.addEventListener('click', () => {
-    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
-});
+btnThemeToggle.addEventListener('click', () => applyTheme(currentTheme === 'dark' ? 'light' : 'dark'));
 btnSidebarToggle.addEventListener('click', toggleSidebar);
 btnAddRow.addEventListener('click', () => addRows(1));
 btnReset.addEventListener('click', resetGrid);
@@ -313,5 +442,4 @@ inputFilename.addEventListener('input', (e) => {
     saveToStorage();
 });
 
-// Run init
 init();
