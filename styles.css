@@ -19,6 +19,33 @@ body {
     background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0);
 }
 
+.date-input {
+    color-scheme: light;
+    cursor: pointer;
+}
+
+.dark .date-input {
+    color-scheme: dark;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.75;
+    padding: 4px;
+    border-radius: 8px;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.date-input:hover::-webkit-calendar-picker-indicator,
+.date-input:focus::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    background-color: rgba(210, 0, 110, 0.12);
+}
+
+.dark .date-input::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .overflow-x-auto::-webkit-scrollbar {
     display: none;
