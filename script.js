@@ -17,10 +17,10 @@ const APP_CONFIG = {
             columns: [
                 { id: 'codigo', label: 'Código', placeholder: 'Cuenta, suministro...', rule: /^[a-zA-Z0-9]{0,50}$/, error: 'Máx 50 caracteres alfanuméricos' },
                 { id: 'descripcion', label: 'Descripción', placeholder: 'Ref. pago...', rule: /^[a-zA-Z0-9\s]{0,100}$/, error: 'Máx 100 caracteres alfanuméricos' },
-                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA / TAR', rule: /^(CTA|TAR)$/i, error: 'Debe ser CTA o TAR' },
-                { id: 'tipo', label: 'Tipo Cta/Tar', placeholder: 'CTE, AHO, A, V, M', rule: /^(CTE|AHO|A|V|M)$/i, error: 'CTE, AHO, A, V o M' },
+                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA / TAR', rule: /^(CTA|TAR)$/i, error: 'Debe ser CTA o TAR', exportValue: value => value.toUpperCase() },
+                { id: 'tipo', label: 'Tipo Cta/Tar', placeholder: 'CTE, AHO, A, V, M', rule: /^(CTE|AHO|A|V|M)$/i, error: 'CTE, AHO, A, V o M', exportValue: value => value.toUpperCase() },
                 { id: 'numero', label: 'Nº Cta/Tar', placeholder: '0123456789', rule: /^\d{0,20}$/, error: 'Máx 20 números' },
-                { id: 'monto', label: 'Monto Máx', placeholder: 'Opcional (9999999)', rule: /^\d{0,7}$/, error: 'Máx 7 números', optional: true },
+                { id: 'monto', label: 'Monto Máx', placeholder: 'Opcional (9999999)', rule: /^\d{0,7}$/, error: 'Máx 7 números', optional: true, exportValue: value => value === '' ? '9999999' : `${value}00` },
                 { id: 'email', label: 'Email', placeholder: 'usuario@mail.com', rule: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, optional: true },
                 { id: 'telefono', label: 'Teléfono', placeholder: '0999999999', rule: /^\d{0,10}$/, optional: true }
             ],
@@ -36,14 +36,100 @@ const APP_CONFIG = {
             }
         },
         {
+            id: 'pago_terceros',
+            label: 'Pago a Terceros',
+            title: 'Generador de Pago a Terceros (Cash Management)',
+            description: 'Genera el archivo BENEFICIARIO para cargar pagos masivos a proveedores en Banca Empresas.',
+            storageKey: 'bg_gen_pago_terceros_data',
+            metadataKey: 'bg_gen_pago_terceros_metadata',
+            filename: metadata => `BENEFICIARIO_${formatDate(new Date())}_${padLeft((metadata.secuencia_archivo || '1').trim(), 2)}`,
+            metadata: [
+                { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Hasta 10 dígitos. Al exportar se completa con ceros a la izquierda' },
+                { id: 'secuencia_archivo', label: 'Secuencia del archivo', placeholder: '01', defaultValue: '01', rule: /^\d{1,2}$/, error: 'Número de 1 o 2 dígitos (01, 02, ...)' }
+            ],
+            columns: [
+                { id: 'comprobante', label: 'Comprobante', placeholder: 'Egreso, planilla...', rule: /^[a-zA-Z0-9]{0,20}$/, error: 'Máx 20 caracteres alfanuméricos', optional: true },
+                { id: 'codigo', label: 'Código', placeholder: 'Cuenta o ID del proveedor', rule: /^[a-zA-Z0-9]{1,20}$/, error: 'Máx 20 caracteres alfanuméricos' },
+                { id: 'valor', label: 'Valor', placeholder: '12645.76', rule: /^\d{1,11}([.,]\d{1,2})?$/, error: 'Hasta 11 enteros y 2 decimales. Ej: 12645.76' },
+                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA', options: ['CTA', 'CHQ', 'EFE'], rule: /^(CTA|CHQ|EFE)$/i, error: 'CTA (crédito a cuenta), CHQ (cheque) o EFE (efectivo)', exportValue: value => value.toUpperCase() },
+                {
+                    id: 'codigo_institucion', label: 'Cód. Institución', placeholder: '0017',
+                    rule: (value, row) => isVentanilla(row) ? value === '0017' : /^([a-zA-Z0-9]{4}|[a-zA-Z0-9]{15})$/.test(value),
+                    error: '4 o 15 caracteres (0017 = Banco Guayaquil). Con CHQ o EFE debe ser 0017'
+                },
+                {
+                    id: 'tipo_cuenta', label: 'Tipo Cuenta', placeholder: 'CTE / AHO', options: ['CTE', 'AHO'],
+                    rule: (value, row) => isCreditoCuenta(row) ? /^(CTE|AHO)$/i.test(value) : value === '',
+                    error: 'CTE o AHO cuando la forma de pago es CTA; vacío con CHQ o EFE',
+                    exportValue: value => value.toUpperCase()
+                },
+                {
+                    id: 'numero_cuenta', label: 'Nº Cuenta', placeholder: '0001234567',
+                    rule: (value, row) => {
+                        if (!isCreditoCuenta(row)) return value === '';
+                        return isBancoGuayaquil(row) ? /^\d{1,10}$/.test(value) : /^[a-zA-Z0-9]{1,30}$/.test(value);
+                    },
+                    error: 'Obligatorio con CTA (BG hasta 10 dígitos, otros bancos hasta 30); vacío con CHQ o EFE',
+                    exportValue: (value, row) => formatTerceroAccount(value, row)
+                },
+                { id: 'tipo_id', label: 'Tipo ID', placeholder: 'C / R / P', options: ['C', 'R', 'P'], rule: /^[CRP]$/i, error: 'C (cédula), R (RUC) o P (pasaporte)', exportValue: value => value.toUpperCase() },
+                {
+                    id: 'numero_id', label: 'Nº ID', placeholder: '0912378320',
+                    rule: (value, row) => {
+                        const tipo = normalizeId(row.tipo_id);
+                        if (tipo === 'C') return /^\d{10}$/.test(value);
+                        if (tipo === 'R') return /^\d{13}$/.test(value);
+                        return /^[a-zA-Z0-9]{1,13}$/.test(value);
+                    },
+                    error: 'Cédula: 10 dígitos. RUC: 13 dígitos. Pasaporte: hasta 13 caracteres',
+                    exportValue: value => value.toUpperCase()
+                },
+                { id: 'nombre', label: 'Nombre Beneficiario', placeholder: 'Proveedor S.A.', rule: /^[^,]{1,40}$/, error: 'Máx 40 caracteres, sin comas' },
+                { id: 'direccion', label: 'Dirección', placeholder: 'Opcional', rule: /^[^,]{0,40}$/, error: 'Máx 40 caracteres, sin comas', optional: true, hidden: true },
+                { id: 'ciudad', label: 'Ciudad', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Máx 20 caracteres, sin comas', optional: true, hidden: true },
+                { id: 'telefono', label: 'Teléfono', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Máx 20 caracteres, sin comas', optional: true, hidden: true },
+                {
+                    id: 'localidad_pago', label: 'Localidad Pago', placeholder: 'QUITO, GUAYAQUIL...',
+                    rule: (value, row) => isCreditoCuenta(row) ? value === '' : /^[^,]{0,20}$/.test(value),
+                    error: 'Solo con CHQ o EFE (máx 20 caracteres, sin comas); vacío con CTA',
+                    exportValue: value => value.toUpperCase(),
+                    hidden: true
+                },
+                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^,]{1,200}$/, error: 'Máx 200 caracteres, sin comas' },
+                { id: 'referencia_adicional', label: 'Ref. Adicional', placeholder: 'Texto o |correo@dominio.com', rule: /^[^,]{0,100}$/, error: 'Máx 100 caracteres, sin comas', optional: true, hidden: true }
+            ],
+            exportRow: (row, index, metadata, columns) => [
+                'PA',
+                padLeft((metadata.cuenta_empresa || '').trim(), 10),
+                String(index + 1),
+                getExportValue(findColumn(columns, 'comprobante'), row),
+                getExportValue(findColumn(columns, 'codigo'), row),
+                'USD',
+                formatTerceroAmount(row.valor),
+                ...['forma_pago', 'codigo_institucion', 'tipo_cuenta', 'numero_cuenta', 'tipo_id', 'numero_id', 'nombre', 'direccion', 'ciudad', 'telefono', 'localidad_pago', 'referencia', 'referencia_adicional']
+                    .map(id => getExportValue(findColumn(columns, id), row))
+            ].join(','),
+            recommendations: {
+                items: [
+                    { label: 'Archivo', html: `Se descarga como ${chip('BENEFICIARIO_AAAAMMDD_NN')}. Sube la secuencia si envías más de un archivo el mismo día.` },
+                    { label: 'Cuenta Empresa', html: 'Se completa con ceros a la izquierda hasta 10 dígitos al exportar.' },
+                    { label: 'Forma de Pago', html: `${chip('CTA')} acredita en cuenta, ${chip('CHQ')} cheque y ${chip('EFE')} efectivo.` },
+                    { label: 'Cuenta destino', html: `Tipo y Nº de cuenta solo se llenan con ${chip('CTA')}. Con ${chip('CHQ')} o ${chip('EFE')} van vacíos y la institución debe ser ${chip('0017')}.` },
+                    { label: 'Valor', html: `Escribe el monto con decimales (${chip('12645.76')}). Al exportar se convierte a 13 dígitos sin punto.` },
+                    { label: 'Identificación', html: `${chip('C')} cédula (10 dígitos), ${chip('R')} RUC (13 dígitos), ${chip('P')} pasaporte (hasta 13).` },
+                    { label: 'Comas', html: 'Los campos de texto no admiten comas: son el separador del archivo.' }
+                ],
+                tip: 'Puedes copiar desde Excel y pegar directamente desde la columna Comprobante. El código de orientación (PA), la moneda (USD) y el secuencial se generan solos.'
+            }
+        },
+        {
             id: 'recaudacion_batch',
             label: 'Recaudación Batch',
             title: 'Generador Batch de Recaudación',
             description: 'Genera el archivo TXT de Cobros o Facturación (RECAUDOS17_TC) con registros de 124 caracteres.',
             storageKey: 'bg_gen_recaudacion_batch_data',
             metadataKey: 'bg_gen_recaudacion_batch_metadata',
-            filenameKey: 'bg_gen_recaudacion_batch_filename',
-            defaultFilename: 'REM',
+            filename: metadata => `REM_${formatDate(new Date())}_${(metadata.codigo_empresa || 'EMPRESA').trim().toUpperCase() || 'EMPRESA'}`,
             exportType: 'fixedBatch',
             metadata: [
                 { id: 'fecha_ejecucion', label: 'Fecha de ejecución', placeholder: 'Seleccione una fecha', type: 'date', futureOnly: true, rule: /^\d{8}$/, error: 'Seleccione una fecha futura' },
@@ -95,8 +181,6 @@ const btnReset = document.getElementById('btn-reset');
 const btnDownload = document.getElementById('btn-download');
 const btnThemeToggle = document.getElementById('theme-toggle');
 const btnSidebarToggle = document.getElementById('sidebar-toggle');
-const sidebarIconOpen = document.getElementById('sidebar-icon-open');
-const sidebarIconClosed = document.getElementById('sidebar-icon-closed');
 const sidebarPanel = document.getElementById('sidebar-panel');
 const layoutWrapper = document.getElementById('layout-wrapper');
 const rowCountDisplay = document.getElementById('row-count');
@@ -105,6 +189,14 @@ const footerActions = document.getElementById('footer-actions');
 
 function getActiveConfig() {
     return APP_CONFIG.generators[activeGeneratorIndex];
+}
+
+// Las columnas con `hidden` no se muestran ni se validan, pero siguen existiendo
+// en los datos y en el archivo exportado (vacías), porque las posiciones de los
+// campos son fijas. Úsalo solo en columnas opcionales: nadie va a poder corregir
+// un error en una columna que no se ve.
+function getVisibleColumns(gen = getActiveConfig()) {
+    return (gen.columns || []).filter(col => !col.hidden);
 }
 
 function init() {
@@ -122,6 +214,7 @@ function loadGenerator() {
     generatorDescription.textContent = gen.description;
 
     loadFromStorage();
+    applyMetadataDefaults();
 
     renderSidebar();
     renderMetadataFields();
@@ -129,10 +222,11 @@ function loadGenerator() {
     if (gen.columns) {
         footerActions.classList.remove('hidden');
         const savedFilename = gen.filenameKey ? localStorage.getItem(gen.filenameKey) : null;
-        currentFilename = gen.exportType === 'fixedBatch' ? getBatchFilename() : (savedFilename || gen.defaultFilename);
+        const autoFilename = hasAutoFilename(gen);
+        currentFilename = autoFilename ? gen.filename(currentMetadata) : (savedFilename || gen.defaultFilename);
         inputFilename.value = currentFilename;
-        inputFilename.disabled = gen.exportType === 'fixedBatch';
-        inputFilename.classList.toggle('opacity-60', gen.exportType === 'fixedBatch');
+        inputFilename.disabled = autoFilename;
+        inputFilename.classList.toggle('opacity-60', autoFilename);
 
         renderHeader();
         if (gridData.length === 0) {
@@ -181,19 +275,26 @@ function applySidebarState(visible) {
         sidebarPanel.style.opacity = '1';
         layoutWrapper.classList.add('lg:grid-cols-[1fr_320px]');
         layoutWrapper.classList.remove('lg:grid-cols-1');
-        sidebarIconOpen.classList.remove('hidden');
-        sidebarIconClosed.classList.add('hidden');
     } else {
         sidebarPanel.classList.add('hidden');
         sidebarPanel.style.width = '0';
         sidebarPanel.style.opacity = '0';
         layoutWrapper.classList.remove('lg:grid-cols-[1fr_320px]');
         layoutWrapper.classList.add('lg:grid-cols-1');
-        sidebarIconOpen.classList.add('hidden');
-        sidebarIconClosed.classList.remove('hidden');
     }
+    btnSidebarToggle.className = getSidebarToggleClass(visible);
+    btnSidebarToggle.setAttribute('aria-expanded', visible);
     localStorage.setItem(APP_CONFIG.sidebarKey, visible);
     isSidebarVisible = visible;
+}
+
+// El botón dice siempre "Ayuda": el estado del panel se muestra con el énfasis
+// del botón (marcado con el panel abierto, apagado con el panel cerrado).
+function getSidebarToggleClass(visible) {
+    const base = 'px-6 py-3 rounded-lg border font-bold text-sm cursor-pointer transition-all';
+    return visible
+        ? `${base} bg-slate-200 dark:bg-white/10 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white`
+        : `${base} bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-border text-slate-600 dark:text-text-muted hover:bg-slate-200 dark:hover:bg-white/10`;
 }
 
 function toggleSidebar() {
@@ -225,6 +326,14 @@ function renderSidebar() {
     } else {
         sidebarTip.classList.add('hidden');
     }
+}
+
+function applyMetadataDefaults() {
+    (getActiveConfig().metadata || []).forEach(field => {
+        if (field.defaultValue && !currentMetadata[field.id]) {
+            currentMetadata[field.id] = field.defaultValue;
+        }
+    });
 }
 
 function renderMetadataFields() {
@@ -280,8 +389,8 @@ function escapeHtml(value) {
 function updateMetadata(fieldId, value) {
     const field = (getActiveConfig().metadata || []).find(item => item.id === fieldId);
     currentMetadata[fieldId] = field && field.type === 'date' ? dateInputToCompact(value) : value.trim();
-    if (getActiveConfig().exportType === 'fixedBatch') {
-        currentFilename = getBatchFilename();
+    if (hasAutoFilename()) {
+        currentFilename = resolveFilename();
         inputFilename.value = currentFilename;
     }
     saveToStorage();
@@ -305,17 +414,23 @@ function dateInputToCompact(value) {
 }
 
 function getBaseInputClass() {
-    return 'bg-transparent text-slate-900 dark:text-white w-full p-3 border border-transparent outline-none font-inherit text-sm transition-all focus:bg-slate-50 dark:focus:bg-white/5';
+    return 'bg-transparent text-slate-900 dark:text-white w-full cell border border-transparent outline-none font-inherit text-sm transition-all focus:bg-slate-50 dark:focus:bg-white/5';
 }
 
 function getErrorInputClass() {
-    return 'bg-red-500/10 text-red-600 dark:text-red-200 w-full p-4 border border-red-500/50 outline-none font-inherit text-sm transition-all placeholder:text-red-400/50';
+    return 'bg-red-500/10 text-red-600 dark:text-red-200 w-full cell border border-red-500/50 outline-none font-inherit text-sm transition-all placeholder:text-red-400/50';
+}
+
+// Campo obligatorio todavía vacío. No es un error —el usuario puede no haber
+// llegado— así que se marca con un borde punteado suave en vez del rojo.
+function getPendingInputClass() {
+    return 'bg-transparent text-slate-900 dark:text-white w-full cell border border-dashed border-slate-300 dark:border-white/20 outline-none font-inherit text-sm transition-all focus:bg-slate-50 dark:focus:bg-white/5';
 }
 
 function getMetadataInputClass(field, isValid) {
     const dateClass = field.type === 'date' ? 'date-input ' : '';
     if (!isValid) {
-        return `${dateClass}bg-red-500/10 text-red-600 dark:text-red-200 w-full p-3 rounded-lg border border-red-500/50 outline-none font-inherit text-sm transition-all placeholder:text-red-400/50`;
+        return `${dateClass}bg-red-500/10 text-red-600 dark:text-red-200 w-full cell rounded-lg border border-red-500/50 outline-none font-inherit text-sm transition-all placeholder:text-red-400/50`;
     }
     return `${dateClass}bg-slate-50 dark:bg-black/20 text-slate-900 dark:text-white w-full p-3 rounded-lg border border-slate-200 dark:border-border outline-none font-inherit text-sm transition-all focus:bg-white dark:focus:bg-white/5`;
 }
@@ -347,8 +462,8 @@ function renderHeader() {
         gridHeader.innerHTML = '';
         return;
     }
-    gridHeader.innerHTML = gen.columns.map(col =>
-        `<th class="p-4 text-left font-bold border-b border-slate-200 dark:border-border text-slate-500 dark:text-text-muted text-[0.7rem] uppercase tracking-wider">${col.label}</th>`
+    gridHeader.innerHTML = getVisibleColumns(gen).map(col =>
+        `<th class="cell text-left font-bold border-b border-slate-200 dark:border-border text-slate-500 dark:text-text-muted text-[12px] uppercase tracking-wider">${col.label}</th>`
     ).join('');
 }
 
@@ -356,7 +471,7 @@ function renderPlaceholder() {
     gridBody.innerHTML = `
         <tr>
             <td colspan="20" class="py-24 text-center">
-                <div class="flex flex-col items-center gap-3 text-slate-400 dark:text-white/30">
+                <div class="flex flex-col items-center gacell text-slate-400 dark:text-white/30">
                     <i data-lucide="construction" class="w-9 h-9"></i>
                     <p class="font-bold text-base">Próximamente</p>
                     <p class="text-sm">Este generador estará disponible pronto.</p>
@@ -392,7 +507,7 @@ function renderGrid() {
         tr.dataset.rowIndex = rowIndex;
         tr.className = 'transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.02]';
 
-        gen.columns.forEach(col => {
+        getVisibleColumns(gen).forEach(col => {
             const td = document.createElement('td');
             td.className = 'border-b border-slate-200 dark:border-border p-0';
 
@@ -443,8 +558,11 @@ function handlePaste(e) {
     const pasteData = (e.clipboardData || window.clipboardData).getData('text');
     const rows = pasteData.split(/\r?\n/).filter(line => line.trim() !== '');
 
+    // El pegado se mapea contra las columnas visibles: es lo que el usuario ve
+    // en la grilla y lo que espera que coincida con su Excel.
+    const visibleColumns = getVisibleColumns(gen);
     const startRow = parseInt(e.target.closest('tr').dataset.rowIndex);
-    const startColIndex = gen.columns.findIndex(c => c.id === e.target.dataset.colId);
+    const startColIndex = visibleColumns.findIndex(c => c.id === e.target.dataset.colId);
 
     rows.forEach((rowText, i) => {
         const cells = rowText.split('\t');
@@ -458,8 +576,8 @@ function handlePaste(e) {
 
         cells.forEach((cellValue, j) => {
             const targetColIndex = startColIndex + j;
-            if (gen.columns[targetColIndex]) {
-                gridData[targetRowIndex][gen.columns[targetColIndex].id] = cellValue.trim();
+            if (visibleColumns[targetColIndex]) {
+                gridData[targetRowIndex][visibleColumns[targetColIndex].id] = cellValue.trim();
             }
         });
     });
@@ -475,6 +593,7 @@ function validateGrid() {
     const metadataValid = validateMetadata();
     let hasErrors = false;
     let hasContent = false;
+    let pendingCount = 0;
 
     gridData.forEach((row, index) => {
         const tr = gridBody.children[index];
@@ -489,42 +608,65 @@ function validateGrid() {
         hasContent = true;
         let rowValid = true;
 
-        gen.columns.forEach((col, colIndex) => {
+        getVisibleColumns(gen).forEach((col, colIndex) => {
             const input = tr.children[colIndex].querySelector('input');
             const value = row[col.id].trim();
+            const isValid = isCellValid(col, value, row);
 
-            let isValid = true;
-            if (value === '') {
-                if (!col.optional) isValid = false;
-            } else if (col.rule) {
-                isValid = col.rule.test(value);
-            }
-
-            if (!isValid) {
+            if (isValid) {
+                input.className = getBaseInputClass();
+                input.title = '';
+            } else if (value === '') {
+                // Vacío no es un error: el usuario todavía no llegó a la celda.
+                // Se marca como pendiente (bloquea la descarga, no tiñe la fila).
+                input.className = getPendingInputClass();
+                input.title = col.error ? `Falta completar: ${col.error}` : 'Falta completar';
+                pendingCount++;
+            } else {
                 input.className = getErrorInputClass();
                 input.title = col.error || 'Campo inválido';
                 rowValid = false;
                 hasErrors = true;
-            } else {
-                input.className = getBaseInputClass();
-                input.title = '';
             }
         });
 
         tr.classList.toggle('bg-red-500/5', !rowValid);
     });
 
-    btnDownload.disabled = hasErrors || !hasContent || !metadataValid;
+    btnDownload.disabled = hasErrors || pendingCount > 0 || !hasContent || !metadataValid;
     if (!metadataValid) {
         statusMessage.textContent = 'Complete los campos generales';
         statusMessage.className = 'font-semibold text-error';
     } else if (hasErrors) {
         statusMessage.textContent = 'Hay errores en la tabla';
         statusMessage.className = 'font-semibold text-error';
+    } else if (pendingCount > 0) {
+        statusMessage.textContent = pendingCount === 1
+            ? 'Falta 1 campo por completar'
+            : `Faltan ${pendingCount} campos por completar`;
+        statusMessage.className = 'font-semibold text-slate-500 dark:text-text-muted';
     } else {
         statusMessage.textContent = 'Listo para exportar';
         statusMessage.className = 'font-semibold text-success';
     }
+}
+
+// Una `rule` puede ser un regex (se valida solo el valor de la celda) o una
+// función (value, row) para reglas que dependen de otras columnas de la fila.
+// Con función, `optional` no aplica: la función decide también el caso vacío.
+function isCellValid(col, value, row) {
+    if (typeof col.rule === 'function') return col.rule(value, row);
+    if (value === '') return Boolean(col.optional);
+    return !col.rule || col.rule.test(value);
+}
+
+function findColumn(columns, id) {
+    return columns.find(col => col.id === id);
+}
+
+function getExportValue(col, row) {
+    const value = String(row[col.id] || '').trim();
+    return col.exportValue ? col.exportValue(value, row) : value;
 }
 
 function getNonEmptyRows() {
@@ -578,9 +720,15 @@ function addMonths(date, count) {
     return result;
 }
 
-function getBatchFilename() {
-    const companyCode = (currentMetadata.codigo_empresa || 'EMPRESA').trim().toUpperCase() || 'EMPRESA';
-    return `REM_${formatDate(new Date())}_${companyCode}`;
+// Un generador puede derivar su nombre de archivo con `filename(metadata)`. En
+// ese caso el campo de nombre se muestra deshabilitado y no se persiste.
+function hasAutoFilename(gen = getActiveConfig()) {
+    return typeof gen.filename === 'function';
+}
+
+function resolveFilename() {
+    const gen = getActiveConfig();
+    return hasAutoFilename(gen) ? gen.filename(currentMetadata) : (currentFilename || gen.defaultFilename);
 }
 
 function normalizeOption(value) {
@@ -653,8 +801,40 @@ function exportFixedBatchTxt() {
         ...rows.map(buildBatchDetail)
     ];
 
-    downloadText(lines.join('\n'), `${getBatchFilename()}.txt`);
+    downloadText(lines.join('\n'), `${resolveFilename()}.txt`);
     resetGrid();
+}
+
+// --- Pago a Terceros (Cash Management) ---
+
+function normalizeId(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function isCreditoCuenta(row) {
+    return normalizeId(row.forma_pago) === 'CTA';
+}
+
+function isVentanilla(row) {
+    const formaPago = normalizeId(row.forma_pago);
+    return formaPago === 'CHQ' || formaPago === 'EFE';
+}
+
+function isBancoGuayaquil(row) {
+    return String(row.codigo_institucion || '').trim() === '0017';
+}
+
+// 11 enteros + 2 decimales, sin separador: 12645.76 → 0000001264576
+function formatTerceroAmount(value) {
+    const [integer, decimals = ''] = String(value || '').trim().replace(',', '.').split('.');
+    return padLeft(integer, 11) + decimals.padEnd(2, '0').slice(0, 2);
+}
+
+// Las cuentas de Banco Guayaquil se completan con ceros hasta 10 dígitos; las de
+// otras instituciones van tal cual. Con CHQ o EFE el campo viaja vacío.
+function formatTerceroAccount(value, row) {
+    if (!isCreditoCuenta(row)) return '';
+    return isBancoGuayaquil(row) ? padLeft(value, 10) : value;
 }
 
 function downloadText(content, filename) {
@@ -677,16 +857,11 @@ function exportTxt() {
     }
 
     const validRows = getNonEmptyRows();
-    const lines = validRows.map(row => {
-        return gen.columns.map(col => {
-            let val = row[col.id].trim();
-            if (col.id === 'forma_pago' || col.id === 'tipo') val = val.toUpperCase();
-            if (col.id === 'monto') val = val === '' ? '9999999' : val + '00';
-            return val;
-        }).join(',');
-    });
+    const lines = validRows.map((row, index) => gen.exportRow
+        ? gen.exportRow(row, index, currentMetadata, gen.columns)
+        : gen.columns.map(col => getExportValue(col, row)).join(','));
 
-    downloadText(lines.join('\n'), `${currentFilename || gen.defaultFilename}.txt`);
+    downloadText(lines.join('\n'), `${resolveFilename()}.txt`);
 
     resetGrid();
 }
@@ -699,9 +874,10 @@ function resetGrid() {
     if (gen.storageKey) localStorage.removeItem(gen.storageKey);
     if (gen.metadataKey) localStorage.removeItem(gen.metadataKey);
     currentMetadata = {};
+    applyMetadataDefaults();
 
     if (gen.columns) {
-        currentFilename = gen.exportType === 'fixedBatch' ? getBatchFilename() : gen.defaultFilename;
+        currentFilename = hasAutoFilename(gen) ? gen.filename(currentMetadata) : gen.defaultFilename;
         if (gen.filenameKey) localStorage.removeItem(gen.filenameKey);
         inputFilename.value = currentFilename;
         renderMetadataFields();
@@ -751,7 +927,7 @@ btnAddRow.addEventListener('click', () => addRows(1));
 btnReset.addEventListener('click', resetGrid);
 btnDownload.addEventListener('click', exportTxt);
 inputFilename.addEventListener('input', (e) => {
-    if (getActiveConfig().exportType === 'fixedBatch') return;
+    if (hasAutoFilename()) return;
     currentFilename = e.target.value.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
     saveToStorage();
 });

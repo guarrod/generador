@@ -58,3 +58,7 @@ body {
     scrollbar-width: none;
     /* Firefox */
 }
+
+.cell{
+    padding: 8px;
+}

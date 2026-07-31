@@ -52,11 +52,10 @@
                         class="h-[38px] w-auto dark:brightness-100 brightness-0 opacity-80 dark:opacity-100">
                 </div>
                 <div class="flex gap-4 items-center">
-                    <button id="sidebar-toggle"
-                        class="p-3 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-border text-slate-600 dark:text-text-muted hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
-                        title="Mostrar/Ocultar Sugerencias">
-                        <i data-lucide="panel-right-close" id="sidebar-icon-open" class="hidden"></i>
-                        <i data-lucide="panel-right" id="sidebar-icon-closed" class="hidden"></i>
+                    <!-- Las clases de estado (abierto/cerrado) las reasigna getSidebarToggleClass() -->
+                    <button id="sidebar-toggle" aria-expanded="true" title="Mostrar/Ocultar Sugerencias"
+                        class="px-6 py-3 rounded-lg bg-slate-200 dark:bg-white/10 border border-slate-300 dark:border-white/20 text-slate-900 dark:text-white font-bold text-sm cursor-pointer transition-all">
+                        Ayuda
                     </button>
                     <div class="h-8 w-px bg-slate-200 dark:bg-border mx-1"></div>
                     <button id="theme-toggle"
