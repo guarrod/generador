@@ -471,7 +471,7 @@ function renderPlaceholder() {
     gridBody.innerHTML = `
         <tr>
             <td colspan="20" class="py-24 text-center">
-                <div class="flex flex-col items-center gacell text-slate-400 dark:text-white/30">
+                <div class="flex flex-col items-center gap-3 text-slate-400 dark:text-white/30">
                     <i data-lucide="construction" class="w-9 h-9"></i>
                     <p class="font-bold text-base">Próximamente</p>
                     <p class="text-sm">Este generador estará disponible pronto.</p>
