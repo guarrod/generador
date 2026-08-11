@@ -22,6 +22,19 @@ python -m http.server 8000
 > Tailwind, Lucide y la fuente Nunito Sans se cargan por CDN, así que hace
 > falta conexión a internet la primera vez.
 
+## Deploy
+
+Vive en `https://guarrod.com/generador/`, servido estático desde
+`/var/www/demos/generador/` en el VPS (`pulsar`), que es un clon git del
+mismo repo. Publicar:
+
+```bash
+./deploy.sh
+```
+
+Hace `git push` a `main` y después `git pull` en el servidor. Requiere el
+alias SSH `pulsar` configurado.
+
 ## Generadores disponibles
 
 Se eligen con las pestañas de arriba. Cada uno guarda sus datos por separado,
