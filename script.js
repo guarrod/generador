@@ -14,23 +14,23 @@ const APP_CONFIG = {
             storageKey: 'bg_gen_pago_servicios_data',
             filenameKey: 'bg_gen_pago_servicios_filename',
             defaultFilename: 'carga_masiva',
+            exportSeparator: ';',
             columns: [
                 { id: 'codigo', label: 'Código', placeholder: 'Cuenta, suministro...', rule: /^[a-zA-Z0-9]{0,50}$/, error: 'Máx 50 caracteres alfanuméricos' },
                 { id: 'descripcion', label: 'Descripción', placeholder: 'Ref. pago...', rule: /^[a-zA-Z0-9\s]{0,100}$/, error: 'Máx 100 caracteres alfanuméricos' },
-                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA / TAR', rule: /^(CTA|TAR)$/i, error: 'Debe ser CTA o TAR', exportValue: value => value.toUpperCase() },
-                { id: 'tipo', label: 'Tipo Cta/Tar', placeholder: 'CTE, AHO, A, V, M', rule: /^(CTE|AHO|A|V|M)$/i, error: 'CTE, AHO, A, V o M', exportValue: value => value.toUpperCase() },
-                { id: 'numero', label: 'Nº Cta/Tar', placeholder: '0123456789', rule: /^\d{0,20}$/, error: 'Máx 20 números' },
-                { id: 'monto', label: 'Monto Máx', placeholder: 'Opcional (9999999)', rule: /^\d{0,7}$/, error: 'Máx 7 números', optional: true, exportValue: value => value === '' ? '9999999' : `${value}00` },
-                { id: 'email', label: 'Email', placeholder: 'usuario@mail.com', rule: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, optional: true },
-                { id: 'telefono', label: 'Teléfono', placeholder: '0999999999', rule: /^\d{0,10}$/, optional: true }
+                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA / TAR', rule: /^(CTA|TAR)$/i, error: 'Debe ser CTA o TAR', exportValue: value => value.toUpperCase(), width: 'w-28' },
+                { id: 'tipo', label: 'Tipo Cta/Tar', placeholder: 'CTE, AHO, A, V, M', rule: /^(CTE|AHO|A|V|M)$/i, error: 'CTE, AHO, A, V o M', exportValue: value => value.toUpperCase(), width: 'w-28' },
+                { id: 'numero', label: 'Nº Cta/Tar', placeholder: '0123456789', rule: /^\d{0,20}$/, error: 'Máx 20 números', width: 'w-24' },
+                { id: 'monto', label: 'Monto Máx', placeholder: 'Opcional', rule: /^\d{0,7}$/, error: 'Máx 7 números', optional: true, hidden: true, exportValue: value => value === '' ? '999999999' : `${value}00` },
+                { id: 'email', label: 'Email', placeholder: 'Opcional (usuario@mail.com)', rule: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, optional: true },
+                { id: 'telefono', label: 'Teléfono', placeholder: 'Opcional (0999999999)', rule: /^\d{0,10}$/, optional: true }
             ],
             recommendations: {
                 items: [
                     { label: 'Código', html: 'Hasta 50 caracteres (Cuenta, Predio, etc).' },
                     { label: 'Forma de Pago', html: `Use ${chip('CTA')} para Débito o ${chip('TAR')} para Tarjeta.` },
                     { label: 'Tipo', html: `${chip('CTE')}, ${chip('AHO')}, ${chip('A')}, ${chip('V')} o ${chip('M')}.` },
-                    { label: 'Nº Cuenta', html: 'Solo números, hasta 20 dígitos.' },
-                    { label: 'Monto Máx', html: 'Opcional. Por defecto 9999999.' }
+                    { label: 'Nº Cuenta', html: 'Solo números, hasta 20 dígitos.' }
                 ],
                 tip: 'Puedes copiar desde Excel y pegar directamente en la primera celda.'
             }
@@ -42,10 +42,9 @@ const APP_CONFIG = {
             description: 'Genera el archivo BENEFICIARIO para cargar pagos masivos a proveedores en Banca Empresas.',
             storageKey: 'bg_gen_pago_terceros_data',
             metadataKey: 'bg_gen_pago_terceros_metadata',
-            filename: metadata => `BENEFICIARIO_${formatDate(new Date())}_${padLeft((metadata.secuencia_archivo || '1').trim(), 2)}`,
+            filename: () => `BENEFICIARIO_${formatDate(new Date())}_01`,
             metadata: [
-                { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Hasta 10 dígitos. Al exportar se completa con ceros a la izquierda' },
-                { id: 'secuencia_archivo', label: 'Secuencia del archivo', placeholder: '01', defaultValue: '01', rule: /^\d{1,2}$/, error: 'Número de 1 o 2 dígitos (01, 02, ...)' }
+                { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Hasta 10 dígitos. Al exportar se completa con ceros a la izquierda' }
             ],
             columns: [
                 { id: 'comprobante', label: 'Comprobante', placeholder: 'Egreso, planilla...', rule: /^[a-zA-Z0-9]{0,20}$/, error: 'Máx 20 caracteres alfanuméricos', optional: true },
@@ -111,7 +110,7 @@ const APP_CONFIG = {
             ].join(','),
             recommendations: {
                 items: [
-                    { label: 'Archivo', html: `Se descarga como ${chip('BENEFICIARIO_AAAAMMDD_NN')}. Sube la secuencia si envías más de un archivo el mismo día.` },
+                    { label: 'Archivo', html: `Se descarga como ${chip('BENEFICIARIO_AAAAMMDD_01')}.` },
                     { label: 'Cuenta Empresa', html: 'Se completa con ceros a la izquierda hasta 10 dígitos al exportar.' },
                     { label: 'Forma de Pago', html: `${chip('CTA')} acredita en cuenta, ${chip('CHQ')} cheque y ${chip('EFE')} efectivo.` },
                     { label: 'Cuenta destino', html: `Tipo y Nº de cuenta solo se llenan con ${chip('CTA')}. Con ${chip('CHQ')} o ${chip('EFE')} van vacíos y la institución debe ser ${chip('0017')}.` },
@@ -463,7 +462,7 @@ function renderHeader() {
         return;
     }
     gridHeader.innerHTML = getVisibleColumns(gen).map(col =>
-        `<th class="cell text-left font-bold border-b border-slate-200 dark:border-border text-slate-500 dark:text-text-muted text-[12px] uppercase tracking-wider">${col.label}</th>`
+        `<th class="cell text-left font-bold border-b border-slate-200 dark:border-border text-slate-500 dark:text-text-muted text-[12px] uppercase tracking-wider${col.width ? ` ${col.width}` : ''}">${col.label}</th>`
     ).join('');
 }
 
@@ -645,6 +644,9 @@ function validateGrid() {
             ? 'Falta 1 campo por completar'
             : `Faltan ${pendingCount} campos por completar`;
         statusMessage.className = 'font-semibold text-slate-500 dark:text-text-muted';
+    } else if (!hasContent) {
+        statusMessage.textContent = 'Agrega al menos un registro';
+        statusMessage.className = 'font-semibold text-slate-500 dark:text-text-muted';
     } else {
         statusMessage.textContent = 'Listo para exportar';
         statusMessage.className = 'font-semibold text-success';
@@ -802,7 +804,6 @@ function exportFixedBatchTxt() {
     ];
 
     downloadText(lines.join('\n'), `${resolveFilename()}.txt`);
-    resetGrid();
 }
 
 // --- Pago a Terceros (Cash Management) ---
@@ -843,8 +844,13 @@ function downloadText(content, filename) {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    // Revocar de inmediato corta la descarga si el navegador pide "dónde
+    // guardar" (diálogo asíncrono): para cuando el usuario elige carpeta,
+    // la URL del blob ya no existe.
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function exportTxt() {
@@ -859,11 +865,9 @@ function exportTxt() {
     const validRows = getNonEmptyRows();
     const lines = validRows.map((row, index) => gen.exportRow
         ? gen.exportRow(row, index, currentMetadata, gen.columns)
-        : gen.columns.map(col => getExportValue(col, row)).join(','));
+        : gen.columns.map(col => getExportValue(col, row)).join(gen.exportSeparator || ','));
 
     downloadText(lines.join('\n'), `${resolveFilename()}.txt`);
-
-    resetGrid();
 }
 
 function resetGrid() {

@@ -30,7 +30,7 @@ así que podés saltar de uno a otro sin perder nada.
 ### 1. Pago de Servicios
 
 Genera el archivo de carga masiva de servicios: una línea por registro, campos
-separados por comas.
+separados por punto y coma (`;`).
 
 | Columna      | Regla                                | Obligatorio |
 | ------------ | ------------------------------------ | ----------- |
@@ -39,12 +39,12 @@ separados por comas.
 | Forma Pago   | `CTA` (débito) o `TAR` (tarjeta)     | Sí          |
 | Tipo Cta/Tar | `CTE`, `AHO`, `A`, `V` o `M`         | Sí          |
 | Nº Cta/Tar   | Hasta 20 dígitos                     | Sí          |
-| Monto Máx    | Hasta 7 dígitos                      | No          |
 | Email        | Formato de correo                    | No          |
 | Teléfono     | Hasta 10 dígitos                     | No          |
 
-Al exportar: `Forma Pago` y `Tipo` se pasan a mayúsculas, y `Monto Máx` vacío
-se completa con `9999999`; si tiene valor se le agregan los centavos (`00`).
+Al exportar: `Forma Pago` y `Tipo` se pasan a mayúsculas. Hay un campo **Monto
+Máx** oculto (hasta 7 dígitos) que no se muestra en la grilla: vacío se
+completa con `999999999`; si tiene valor se le agregan los centavos (`00`).
 
 ### 2. Pago a Terceros (Cash Management)
 

@@ -46,8 +46,12 @@ Campos de un generador:
 | `recommendations` | Contenido del panel lateral: `items` + `tip`                       |
 
 Cada columna: `id`, `label`, `placeholder`, `rule`, `error` (mensaje del
-tooltip), `optional`, `options` (llena un `<datalist>`), `exportValue` y
-`hidden`. Cada campo de metadata acepta además `type: 'date'`, `futureOnly` y
+tooltip), `optional`, `options` (llena un `<datalist>`), `exportValue`,
+`hidden` y `width` (clase Tailwind, ej. `w-24`, para fijar el ancho de una
+columna angosta). La tabla no es `table-fixed`, así que el resto de las
+columnas sin `width` se sigue repartiendo el espacio sobrante según su
+contenido, como antes — `width` solo restringe las columnas que lo declaran.
+Cada campo de metadata acepta además `type: 'date'`, `futureOnly` y
 `defaultValue`.
 
 Cuatro puntos de extensión declarativos, todos opcionales y retrocompatibles:
@@ -129,13 +133,21 @@ Las fechas viven en dos representaciones: `AAAAMMDD` compacto en `currentMetadat
 y `AAAA-MM-DD` en el `<input type="date">`. Convertir siempre con
 `compactDateToInput()` / `dateInputToCompact()`.
 
-## Formatos separados por comas
+## Formatos separados por comas (o `exportSeparator`)
 
 Pago de Servicios y Pago a Terceros exportan CSV con extensión `.txt`, igual que
 el generador oficial de Banco Guayaquil (que usa `tableToCsv`). Consecuencia:
-**ningún campo de texto puede contener comas**, o el archivo se desalinea. Los
-campos libres lo previenen con reglas del tipo `/^[^,]{1,40}$/` en lugar de
-contar solo el largo — si agregás un campo de texto, seguí esa forma.
+**ningún campo de texto puede contener el separador**, o el archivo se
+desalinea. Los campos libres lo previenen con reglas del tipo `/^[^,]{1,40}$/`
+en lugar de contar solo el largo — si agregás un campo de texto, seguí esa
+forma (con el carácter del separador que use ese generador).
+
+Pago a Terceros arma la línea a mano en `exportRow` con `.join(',')`. Pago de
+Servicios no tiene `exportRow`, así que cae en el `join` genérico de
+`exportTxt()`, que usa `gen.exportSeparator` (por defecto `,`) — Pago de
+Servicios lo fija en `;`. Es la única forma de separador declarativa hoy;
+un generador nuevo sin `exportRow` que necesite otro separador solo tiene que
+declarar `exportSeparator`.
 
 Los campos con largo fijo dentro de la línea (el valor de 13 dígitos de Pago a
 Terceros, la cuenta de empresa de 10) se arman con `padLeft` en `exportValue` o
@@ -144,10 +156,10 @@ natural (`12645.76`) y el relleno pasa al exportar.
 
 ## Cosas a tener en cuenta
 
-- `exportTxt()` llama a `resetGrid()` al terminar, y `resetGrid()` abre un
-  `confirm()`. O sea: después de descargar aparece el diálogo "¿Estás seguro de
-  que quieres borrar todos los datos?". Es el mismo diálogo del botón Resetear.
-  Si vas a tocar el flujo de exportación, tenelo presente.
+- `downloadText()` revoca la URL del blob recién a los 1000ms (`setTimeout`),
+  no apenas después de `a.click()`. Si el navegador tiene activado "preguntar
+  dónde guardar cada archivo", ese diálogo nativo es asíncrono; revocar antes
+  de que el usuario elija carpeta corta la descarga a medias.
 - `buildBatchHeader()` hace `currentMetadata.fecha_ejecucion.trim()` sin
   guarda. Hoy no rompe porque el botón de descarga se deshabilita cuando la
   metadata es inválida, pero es una dependencia implícita entre validación y
