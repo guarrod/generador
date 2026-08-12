@@ -51,9 +51,7 @@ un clon git de este mismo repo.
 ## Generadores disponibles
 
 Se eligen con las pestañas de arriba. Cada uno guarda sus datos por separado, así
-que se puede saltar de uno a otro sin perder nada. La entrega siguiente suma
-Recaudación Batch; ver [`docs/estado.md`](docs/estado.md) antes de simplificar la
-arquitectura multi-generador.
+que se puede saltar de uno a otro sin perder nada.
 
 ### 1. Pago de Servicios
 
@@ -131,6 +129,54 @@ rechaza dos cargas con el mismo nombre en la misma fecha.
 > contener comas**. La grilla las marca como error. Ojo: el separador es un
 > supuesto heredado, no está en la documentación del banco — ver
 > [`docs/estado.md`](docs/estado.md).
+
+### 3. Recaudación Batch (RECAUDOS17_TC)
+
+Genera el archivo de Cobros / Facturación en formato de **ancho fijo, 124
+caracteres por línea**: una cabecera seguida de una línea por registro.
+
+Antes de la grilla se piden dos campos generales:
+
+- **Fecha de ejecución** — tiene que ser futura (el selector no deja elegir hoy
+  ni fechas pasadas).
+- **Código de empresa** — el que entrega Banco Guayaquil, hasta 5 caracteres.
+
+El nombre del archivo se arma solo: `REM_<AAAAMMDD de hoy>_<CÓDIGO EMPRESA>.txt`.
+
+**Cabecera (124 caracteres)**
+
+| Pos | Largo | Contenido                                    |
+| --- | ----- | -------------------------------------------- |
+| 1   | 2     | `01` (tipo de registro)                      |
+| 3   | 3     | `REC`                                        |
+| 6   | 5     | `00017`                                      |
+| 11  | 5     | Código de empresa, completado con espacios   |
+| 16  | 2     | `01`                                         |
+| 18  | 8     | Fecha de generación (AAAAMMDD)               |
+| 26  | 8     | Fecha de ejecución (AAAAMMDD)                |
+| 34  | 8     | Cantidad de registros, con ceros a izquierda |
+| 42  | 15    | Total a cobrar en centavos, con ceros        |
+| 57  | 68    | Espacios de relleno                          |
+
+**Detalle (124 caracteres, uno por registro)**
+
+| Pos | Largo | Contenido                                        |
+| --- | ----- | ------------------------------------------------ |
+| 1   | 2     | `02` (tipo de registro)                          |
+| 3   | 2     | Novedad: `01` nueva deuda / `02` actualizar       |
+| 5   | 15    | Código de cliente, completado con espacios       |
+| 20  | 40    | Nombre del cliente, completado con espacios      |
+| 60  | 10    | Valor a cobrar en centavos, con ceros            |
+| 70  | 8     | Fecha máxima de pago (hoy + 1 mes)               |
+| 78  | 10    | Valor mínimo en centavos (vacío → ceros)         |
+| 88  | 10    | Valor de retención en centavos (vacío → ceros)   |
+| 98  | 15    | Referencia, completada con espacios              |
+| 113 | 6     | Periodo (AAAAMM)                                 |
+| 119 | 2     | Secuencia: `01` a `04`                           |
+| 121 | 4     | Espacios de relleno                              |
+
+Los montos se escriben con 2 decimales (`220.00`) y al exportar se convierten a
+centavos sin punto (`0000022000`).
 
 ## Uso
 

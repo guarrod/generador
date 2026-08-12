@@ -6,26 +6,35 @@ incluidas las que conviene revisar.
 
 ## Alcance de esta entrega
 
-Dos generadores —**Pago de Servicios** y **Pago a Terceros**— y la barra de
-pestañas para saltar entre ellos. Cada uno guarda sus datos por separado en
-`localStorage`.
+Los tres generadores —**Pago de Servicios**, **Pago a Terceros** y **Recaudación
+Batch**— con la barra de pestañas. Cada uno guarda sus datos por separado en
+`localStorage`. Con esto se completa el plan de entregas.
 
 El formato de Pago a Terceros está transcrito campo por campo en
 [formato-pago-terceros.md](formato-pago-terceros.md), porque la página del banco
 no se puede consultar de forma automática.
 
-## Lo que viene después
+## Cómo se llegó hasta acá
 
 | Entrega | Contenido |
 | ------- | --------- |
 | 1 | Pago de Servicios, sin pestañas |
-| 2 (esta) | + Pago a Terceros (Cash Management). Vuelve la barra de pestañas |
-| 3 | + Recaudación Batch (RECAUDOS17_TC), formato de ancho fijo de 124 caracteres |
+| 2 | + Pago a Terceros (Cash Management). Vuelve la barra de pestañas |
+| 3 (esta) | + Recaudación Batch (RECAUDOS17_TC), ancho fijo de 124 caracteres |
 
-**No colapsen el array de generadores ni saquen `getActiveConfig()`.** Es lo que
-hace que la entrega 3 sea agregar un objeto y no reescribir el render. Por la
-misma razón quedan en el árbol algunos helpers que todavía no llama nadie: son
-del generador que llega después.
+Las tres se hicieron **sin tocar el motor**: cada una agregó un objeto a
+`APP_CONFIG.generators`. Si aparece un formato nuevo que no entra en la config,
+la salida es extender la config con una propiedad declarativa, no ramificar el
+render con `if (gen.id === '...')`.
+
+## Lo que no se puede romper en Recaudación Batch
+
+Es el único formato de ancho fijo: **cada línea tiene que medir exactamente 124
+caracteres**. Si un tramo cambia de largo, el banco lee corridos todos los campos
+que vienen después y **en la pantalla no se nota nada**. `buildBatchHeader()` y
+`buildBatchDetail()` arman la línea como un array de tramos que se concatena: si
+tocan uno, hay que volver a sumar los largos y ajustar el relleno final. La suite
+verifica la longitud y la posición de cada tramo, no solo el contenido.
 
 ## Supuestos abiertos
 

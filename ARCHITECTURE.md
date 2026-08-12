@@ -7,13 +7,13 @@ hace la herramienta y el detalle de los formatos de archivo, ver
 
 ## Entregas
 
-Esta entrega trae dos generadores (Pago de Servicios y Pago a Terceros) y la
-barra de pestañas. La siguiente suma Recaudación Batch; el detalle está en
+Esta entrega completa los tres generadores (Pago de Servicios, Pago a Terceros y
+Recaudación Batch) con la barra de pestañas. El recorrido está en
 [docs/estado.md](docs/estado.md).
 
-Lo que cambia entre entregas es la config, **nunca el motor**: todo lo que
-describe este archivo vale igual en todas. Por eso quedan en el árbol helpers
-que todavía no llama nadie — son del generador que llega después.
+Cada entrega agregó un objeto a `APP_CONFIG.generators` y **nunca tocó el
+motor**: es la propiedad que conviene conservar cuando aparezca el próximo
+formato.
 
 ## Stack
 

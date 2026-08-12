@@ -135,6 +135,41 @@ const APP_CONFIG = {
                 tip: 'Los 20 campos del formato son las 20 columnas de la grilla, en su orden: la línea del archivo es la fila tal cual. Los campos 1, 6 y 3 vienen preseteados en cada fila nueva (PA, USD y el secuencial), pero se pueden editar como cualquier otro.',
                 notice: 'El NN del nombre del archivo se edita abajo, en el campo del nombre: no es un campo del registro, es parte del nombre.'
             }
+        },
+        {
+            id: 'recaudacion_batch',
+            label: 'Recaudación Batch',
+            title: 'Generador Batch de Recaudación',
+            description: 'Genera el archivo TXT de Cobros o Facturación (RECAUDOS17_TC) con registros de 124 caracteres.',
+            storageKey: 'bg_gen_recaudacion_batch_data',
+            metadataKey: 'bg_gen_recaudacion_batch_metadata',
+            filename: metadata => `REM_${formatDate(new Date())}_${(metadata.codigo_empresa || 'EMPRESA').trim().toUpperCase() || 'EMPRESA'}`,
+            exportType: 'fixedBatch',
+            metadata: [
+                { id: 'fecha_ejecucion', label: 'Fecha de ejecución', placeholder: 'Seleccione una fecha', type: 'date', futureOnly: true, rule: /^\d{8}$/, error: 'Seleccione una fecha futura' },
+                { id: 'codigo_empresa', label: 'Código de empresa', placeholder: 'EFA', rule: /^[a-zA-Z0-9]{1,5}$/, error: 'Máx 5 caracteres alfanuméricos' }
+            ],
+            columns: [
+                { id: 'tipo_registro', label: 'Tipo Registro', placeholder: 'Nueva Deuda', options: ['Nueva Deuda', 'Actualizar Deuda'], rule: /^(Nueva Deuda|Actualizar Deuda)$/i, error: 'Nueva Deuda o Actualizar Deuda' },
+                { id: 'codigo_cliente', label: 'Código Cliente', placeholder: '123456789', rule: /^[a-zA-Z0-9]{1,15}$/, error: 'Máx 15 caracteres alfanuméricos' },
+                { id: 'nombre_cliente', label: 'Nombre Cliente', placeholder: 'Usuario Prueba', rule: /^.{1,40}$/, error: 'Máx 40 caracteres' },
+                { id: 'valor_cobrar', label: 'Valor a Cobrar', placeholder: '220.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Ingrese un monto con 2 decimales. Ej: 220.00' },
+                { id: 'valor_minimo', label: 'Valor Mínimo', placeholder: '50.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Vacío o monto con 2 decimales. Ej: 50.00', optional: true, defaultExport: '0000000000' },
+                { id: 'valor_retencion', label: 'Valor Retención', placeholder: '0.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Vacío o monto con 2 decimales. Ej: 0.00', optional: true, defaultExport: '0000000000' },
+                { id: 'referencia', label: 'Referencia', placeholder: 'PRUEBA DE PAGO', rule: /^.{0,15}$/, error: 'Máx 15 caracteres', optional: true },
+                { id: 'periodo', label: 'Periodo', placeholder: 'AAAAMM', rule: /^\d{6}$/, error: 'Debe tener formato AAAAMM' },
+                { id: 'secuencia', label: 'Secuencia', placeholder: 'Unica Deuda', options: ['Unica Deuda', 'Segunda Deuda', 'Tercera Deuda', 'Cuarta Deuda'], rule: /^(Unica Deuda|Segunda Deuda|Tercera Deuda|Cuarta Deuda)$/i, error: 'Seleccione una secuencia válida' }
+            ],
+            recommendations: {
+                items: [
+                    { label: 'Archivo', html: `Salida fija de ${chip('124')} caracteres por línea con cabecera ${chip('01REC')}.` },
+                    { label: 'Empresa', html: 'Código entregado por Banco Guayaquil, hasta 5 caracteres.' },
+                    { label: 'Montos', html: 'Ingrese valores con 2 decimales. Al exportar se convierten a centavos y se completan con ceros a la izquierda.' },
+                    { label: 'Periodo', html: `Formato ${chip('AAAAMM')}. Ejemplo: ${chip('202504')}.` },
+                    { label: 'Filas', html: 'Solo se exportan registros con datos.' }
+                ],
+                tip: 'Puedes copiar desde Excel y pegar directamente desde la columna Tipo Registro.'
+            }
         }
     ]
 };
