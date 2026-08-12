@@ -37,7 +37,7 @@ Campos de un generador:
 | `id`, `label`     | Identificador y texto de la pestaña                                |
 | `title`, `description` | Encabezado del panel                                          |
 | `storageKey`, `metadataKey`, `filenameKey` | Claves de `localStorage`, prefijadas `bg_gen_<id>_` |
-| `defaultFilename` | Nombre inicial del archivo (si el usuario lo puede editar)          |
+| `defaultFilename` | Nombre inicial del archivo, `string` o `() => string` (vía `getDefaultFilename()`) para proponer uno que dependa del día. El campo sigue editable |
 | `filename`        | `(metadata) => string` para derivar el nombre. Deshabilita el campo |
 | `exportType`      | Ausente → CSV separado por comas. `'fixedBatch'` → ancho fijo      |
 | `exportRow`       | `(row, index, metadata, columns) => string` cuando la línea no es un volcado 1:1 de las columnas |
@@ -70,13 +70,17 @@ Cinco puntos de extensión declarativos, todos opcionales y retrocompatibles:
   secuencial que la grilla no pide). Dentro conviene usar
   `getExportValue(findColumn(columns, id), row)` para no duplicar lo que ya
   declara `exportValue`.
-- **`defaultValue`** presetea la celda en lugar de dejarla vacía (hoy: `CTA` en
-  la Forma de Pago de Pago de Servicios). Se aplica en dos momentos, y hacen
-  falta los dos: `createEmptyRow()` para cada fila nueva (lo usan `addRows` y
-  el pegado desde Excel — si agregás otro camino que cree filas, tiene que
-  pasar por ahí) y `applyColumnDefaults()` al cargar el generador, que rellena
-  las celdas vacías de las filas que ya venían de `localStorage`. Sin lo
-  segundo el preseteo no aparece en los datos guardados antes de declararlo.
+- **`defaultValue`** presetea la celda en lugar de dejarla vacía (`CTA` en la
+  Forma de Pago de Pago de Servicios; `PA`, `USD` y el secuencial en la réplica
+  del formato oficial). Acepta un valor fijo o una **función del número de
+  fila** — `index => String(index + 1)` es lo que numera solo el secuencial —,
+  y las dos formas pasan por `getColumnDefault()`. Se aplica en dos momentos, y
+  hacen falta los dos: `createEmptyRow(gen, index)` para cada fila nueva (lo
+  usan `addRows` y el pegado desde Excel — si agregás otro camino que cree
+  filas, tiene que pasar por ahí **con el índice que le va a tocar**) y
+  `applyColumnDefaults()` al cargar el generador, que rellena las celdas vacías
+  de las filas que ya venían de `localStorage`. Sin lo segundo el preseteo no
+  aparece en los datos guardados antes de declararlo.
   Un valor escrito por el usuario nunca se pisa, pero si vacía la celda vuelve
   a tomar el default en la próxima carga — misma semántica que
   `applyMetadataDefaults()` para la metadata.

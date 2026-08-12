@@ -124,7 +124,42 @@ oculta hoy, así que la notificación no se puede cargar desde la grilla.
 > Como el archivo separa campos por comas, **ningún campo de texto puede
 > contener comas**. La grilla las marca como error.
 
-### 3. Recaudación Batch (RECAUDOS17_TC)
+### 3. Pago a Terceros — formato oficial
+
+La misma orden de Cash Management que la pestaña anterior, pero replicando el
+[formato publicado](https://ayudaempresas.bancoguayaquil.com/hc/es/articles/11032985670804--Cu%C3%A1l-es-el-formato-para-cargar-una-orden-de-Cash-Management-para-pago-a-terceros-en-mi-Banca-Empresas)
+campo por campo, sin esconder ninguna columna opcional. El archivo que sale es
+byte por byte el mismo; lo que cambia es lo que se puede cargar desde la
+pantalla.
+
+**Los 20 campos son las 20 columnas de la grilla, en su orden**: la línea del
+archivo es la fila tal cual, sin nada calculado por atrás y sin campos sueltos
+arriba de la tabla. Los campos que no cambian entre filas vienen preseteados y
+se pueden editar igual: `PA` (campo 1), `USD` (campo 6) y el secuencial (campo
+3), que se numera solo desde 1 en cada fila nueva.
+
+Diferencias con la pestaña **Pago a Terceros**:
+
+- **Se ven las 20 columnas**, incluidas Dirección, Ciudad, Teléfono, Localidad
+  de pago y Ref. Adicional. Con esta última se puede pedir la notificación por
+  correo al beneficiario (`|proveedor@mail.com`), que en la otra pestaña no se
+  puede cargar.
+- **La cuenta de la empresa se carga por fila**, no una vez para todo el
+  archivo, porque el formato la define por línea.
+- **El secuencial se puede editar**: los desgloses de rubros del artículo solo
+  aplican a pagos en ventanilla, y con el número fijo no había forma de
+  expresarlos.
+- **`Nº ID` exige elegir primero el `Tipo ID`.** En la otra pestaña, un tipo
+  vacío o desconocido cae en la regla del pasaporte y la celda se pinta de
+  válida aunque no lo sea.
+- Cada mensaje de error y cada recomendación cita el número de campo del
+  formato oficial, así que sirve de referencia mientras se carga.
+
+El `NN` del nombre no es un campo del registro sino parte del nombre del
+archivo, así que se edita abajo, en el campo del nombre, que acá queda
+habilitado y arranca en `BENEFICIARIO_<AAAAMMDD de hoy>_01`.
+
+### 4. Recaudación Batch (RECAUDOS17_TC)
 
 Genera el archivo de Cobros / Facturación en formato de **ancho fijo, 124
 caracteres por línea**: una cabecera seguida de una línea por registro.
