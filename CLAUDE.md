@@ -116,8 +116,12 @@ no los declara; su markup vive estático en `index.html`, solo `renderSidebar()`
 les cambia el texto y la clase `hidden`.
 
 **Los `items` describen la grilla, así que se mantienen a la par de `columns`:**
-un item por columna visible, mismo label y mismo orden. Si cambiás una regla o
-el label de una columna, el item que le corresponde va en el mismo commit. Las
+si cambiás una regla o el label de una columna, el item que le corresponde va en
+el mismo commit. Hay dos formas válidas y conviven: **una por columna** (Pago de
+Servicios: mismo label y mismo orden que la grilla, es lo más fácil de auditar) o
+**por tema** (Pago a Terceros, donde las reglas cruzan columnas — "Cuenta
+destino" cubre forma de pago, institución, tipo y número, y separarlo en cuatro
+items perdería la relación). Elegí una y respetala dentro del generador. Las
 columnas `hidden` no llevan item — si hace falta explicar por qué no están, va
 en el `notice` (es el caso del Monto Máx de Pago de Servicios).
 

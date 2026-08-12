@@ -46,13 +46,14 @@ const APP_CONFIG = {
             description: 'Genera el archivo BENEFICIARIO para cargar pagos masivos a proveedores en Banca Empresas.',
             storageKey: 'bg_gen_pago_terceros_data',
             metadataKey: 'bg_gen_pago_terceros_metadata',
-            filename: () => `BENEFICIARIO_${formatDate(new Date())}_01`,
+            filename: metadata => `BENEFICIARIO_${formatDate(new Date())}_${(metadata.secuencia_archivo || '01').trim()}`,
             metadata: [
-                { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Hasta 10 dígitos. Al exportar se completa con ceros a la izquierda' }
+                { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Hasta 10 dígitos. Al exportar se completa con ceros a la izquierda' },
+                { id: 'secuencia_archivo', label: 'Secuencia del archivo', placeholder: '01', rule: /^\d{2}$/, error: 'Dos dígitos (01, 02, 03...). Súbela para el segundo archivo del día: Banca Empresas rechaza dos cargas con el mismo nombre', defaultValue: '01' }
             ],
             columns: [
-                { id: 'comprobante', label: 'Comprobante', placeholder: 'Egreso, planilla...', rule: /^[a-zA-Z0-9]{0,20}$/, error: 'Máx 20 caracteres alfanuméricos', optional: true },
-                { id: 'codigo', label: 'Código', placeholder: 'Cuenta o ID del proveedor', rule: /^[a-zA-Z0-9]{1,20}$/, error: 'Máx 20 caracteres alfanuméricos' },
+                { id: 'comprobante', label: 'Comprobante', placeholder: 'EGR-0012, planilla...', rule: /^[^,]{0,20}$/, error: 'Máx 20 caracteres, sin comas', optional: true },
+                { id: 'codigo', label: 'Código', placeholder: 'Cuenta o ID del proveedor', rule: /^[^,]{1,20}$/, error: 'Máx 20 caracteres, sin comas' },
                 { id: 'valor', label: 'Valor', placeholder: '12645.76', rule: /^\d{1,11}([.,]\d{1,2})?$/, error: 'Hasta 11 enteros y 2 decimales. Ej: 12645.76' },
                 { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA', options: ['CTA', 'CHQ', 'EFE'], rule: /^(CTA|CHQ|EFE)$/i, error: 'CTA (crédito a cuenta), CHQ (cheque) o EFE (efectivo)', exportValue: value => value.toUpperCase() },
                 {
@@ -114,8 +115,8 @@ const APP_CONFIG = {
             ].join(','),
             recommendations: {
                 items: [
-                    { label: 'Archivo', html: `Se descarga como ${chip('BENEFICIARIO_AAAAMMDD_01')}.` },
-                    { label: 'Cuenta Empresa', html: 'Se completa con ceros a la izquierda hasta 10 dígitos al exportar.' },
+                    { label: 'Archivo', html: `Se descarga como ${chip('BENEFICIARIO_AAAAMMDD_NN')}. Sube la secuencia (${chip('NN')}) para el segundo archivo del día: Banca Empresas rechaza dos cargas con el mismo nombre en la misma fecha.` },
+                    { label: 'Cuenta Empresa', html: 'La misma para todo el archivo: es la cuenta que se debita en la orden. Se completa con ceros a la izquierda hasta 10 dígitos al exportar.' },
                     { label: 'Forma de Pago', html: `${chip('CTA')} acredita en cuenta, ${chip('CHQ')} cheque y ${chip('EFE')} efectivo.` },
                     { label: 'Cuenta destino', html: `Tipo y Nº de cuenta solo se llenan con ${chip('CTA')}. Con ${chip('CHQ')} o ${chip('EFE')} van vacíos y la institución debe ser ${chip('0017')}.` },
                     { label: 'Valor', html: `Escribe el monto con decimales (${chip('12645.76')}). Al exportar se convierte a 13 dígitos sin punto.` },

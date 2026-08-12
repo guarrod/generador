@@ -87,8 +87,8 @@ de pago (se numera solo desde 1, en el orden de las filas).
 
 | Columna             | Regla                                                       | Obligatorio     |
 | ------------------- | ----------------------------------------------------------- | --------------- |
-| Comprobante         | Hasta 20 alfanuméricos                                      | No              |
-| Código              | Hasta 20 alfanuméricos: cuenta o identificación del proveedor | Sí             |
+| Comprobante         | Hasta 20 caracteres, sin comas                              | No              |
+| Código              | Hasta 20 caracteres, sin comas: cuenta o identificación del proveedor | Sí     |
 | Valor               | Hasta 11 enteros y 2 decimales (`12645.76`)                 | Sí              |
 | Forma Pago          | `CTA` cuenta, `CHQ` cheque, `EFE` efectivo                  | Sí              |
 | Cód. Institución    | 4 o 15 caracteres (`0017` = BG)                             | Sí              |
