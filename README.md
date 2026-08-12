@@ -50,10 +50,15 @@ separados por punto y coma (`;`).
 | Código       | Hasta 50 alfanuméricos               | Sí          |
 | Descripción  | Hasta 100 alfanuméricos y espacios   | Sí          |
 | Forma Pago   | `CTA` (débito) o `TAR` (tarjeta)     | Sí          |
-| Tipo Cta/Tar | `CTE`, `AHO`, `A`, `V` o `M`         | Sí          |
+| Tipo Cta     | `CTE` o `AHO`                        | Sí          |
 | Nº Cta/Tar   | Hasta 20 dígitos                     | Sí          |
 | Email        | Formato de correo                    | No          |
 | Teléfono     | Hasta 10 dígitos                     | No          |
+
+Hoy el archivo se usa solo para pagos con **débito en cuenta**, así que
+`Forma Pago` viene preseteada en `CTA` — en cada fila nueva y también en las
+celdas que estén vacías al abrir — y `Tipo Cta` solo acepta los tipos de
+cuenta. La celda se sigue pudiendo editar.
 
 Al exportar: `Forma Pago` y `Tipo` se pasan a mayúsculas. Hay un campo **Monto
 Máx** oculto (hasta 7 dígitos) que no se muestra en la grilla: vacío se

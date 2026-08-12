@@ -43,18 +43,18 @@ Campos de un generador:
 | `exportRow`       | `(row, index, metadata, columns) => string` cuando la línea no es un volcado 1:1 de las columnas |
 | `metadata`        | Campos generales sobre la grilla (opcional)                        |
 | `columns`         | Columnas de la grilla. Si falta, se muestra "Próximamente"          |
-| `recommendations` | Contenido del panel lateral: `items` + `tip`                       |
+| `recommendations` | Contenido del panel lateral: `items` + `tip` + `notice`            |
 
 Cada columna: `id`, `label`, `placeholder`, `rule`, `error` (mensaje del
-tooltip), `optional`, `options` (llena un `<datalist>`), `exportValue`,
-`hidden` y `width` (clase Tailwind, ej. `w-24`, para fijar el ancho de una
-columna angosta). La tabla no es `table-fixed`, así que el resto de las
+tooltip), `optional`, `options` (llena un `<datalist>`), `defaultValue`,
+`exportValue`, `hidden` y `width` (clase Tailwind, ej. `w-24`, para fijar el
+ancho de una columna angosta). La tabla no es `table-fixed`, así que el resto de las
 columnas sin `width` se sigue repartiendo el espacio sobrante según su
 contenido, como antes — `width` solo restringe las columnas que lo declaran.
 Cada campo de metadata acepta además `type: 'date'`, `futureOnly` y
 `defaultValue`.
 
-Cuatro puntos de extensión declarativos, todos opcionales y retrocompatibles:
+Cinco puntos de extensión declarativos, todos opcionales y retrocompatibles:
 
 - **`rule`** puede ser un regex (se valida solo el valor de la celda) o una
   función `(value, row) => boolean` para reglas que dependen de otras columnas
@@ -70,6 +70,16 @@ Cuatro puntos de extensión declarativos, todos opcionales y retrocompatibles:
   secuencial que la grilla no pide). Dentro conviene usar
   `getExportValue(findColumn(columns, id), row)` para no duplicar lo que ya
   declara `exportValue`.
+- **`defaultValue`** presetea la celda en lugar de dejarla vacía (hoy: `CTA` en
+  la Forma de Pago de Pago de Servicios). Se aplica en dos momentos, y hacen
+  falta los dos: `createEmptyRow()` para cada fila nueva (lo usan `addRows` y
+  el pegado desde Excel — si agregás otro camino que cree filas, tiene que
+  pasar por ahí) y `applyColumnDefaults()` al cargar el generador, que rellena
+  las celdas vacías de las filas que ya venían de `localStorage`. Sin lo
+  segundo el preseteo no aparece en los datos guardados antes de declararlo.
+  Un valor escrito por el usuario nunca se pisa, pero si vacía la celda vuelve
+  a tomar el default en la próxima carga — misma semántica que
+  `applyMetadataDefaults()` para la metadata.
 - **`hidden`** saca la columna de la grilla sin sacarla del archivo: se sigue
   inicializando en cada fila y se sigue exportando (vacía) en su posición. Es
   para esconder campos opcionales de un formato de posiciones fijas. Solo en
@@ -95,6 +105,21 @@ Flujo de render: `init()` → `loadGenerator()` → `loadFromStorage()` +
 `renderSidebar()` + `renderMetadataFields()` + `renderHeader()` + `renderGrid()`.
 Cualquier edición dispara `updateCell`/`updateMetadata`, que guardan, revalidan y
 actualizan los contadores.
+
+El panel lateral tiene tres bloques, en este orden: `items` (uno por columna,
+con `label` y `html` — el `html` se interpola tal cual, así que el contenido
+lo escribimos nosotros, nunca el usuario; para resaltar un valor está el helper
+`chip()`), `tip` (la nota gris en itálica) y `notice` (el aviso destacado en
+color secundario, para lo que el usuario tiene que saber sí o sí). Los dos
+últimos son texto plano vía `textContent` y se esconden solos si el generador
+no los declara; su markup vive estático en `index.html`, solo `renderSidebar()`
+les cambia el texto y la clase `hidden`.
+
+**Los `items` describen la grilla, así que se mantienen a la par de `columns`:**
+un item por columna visible, mismo label y mismo orden. Si cambiás una regla o
+el label de una columna, el item que le corresponde va en el mismo commit. Las
+columnas `hidden` no llevan item — si hace falta explicar por qué no están, va
+en el `notice` (es el caso del Monto Máx de Pago de Servicios).
 
 ## Convenciones
 

@@ -18,8 +18,8 @@ const APP_CONFIG = {
             columns: [
                 { id: 'codigo', label: 'Código', placeholder: 'Cuenta, suministro...', rule: /^[a-zA-Z0-9]{0,50}$/, error: 'Máx 50 caracteres alfanuméricos' },
                 { id: 'descripcion', label: 'Descripción', placeholder: 'Ref. pago...', rule: /^[a-zA-Z0-9\s]{0,100}$/, error: 'Máx 100 caracteres alfanuméricos' },
-                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA / TAR', rule: /^(CTA|TAR)$/i, error: 'Debe ser CTA o TAR', exportValue: value => value.toUpperCase(), width: 'w-28' },
-                { id: 'tipo', label: 'Tipo Cta/Tar', placeholder: 'CTE, AHO, A, V, M', rule: /^(CTE|AHO|A|V|M)$/i, error: 'CTE, AHO, A, V o M', exportValue: value => value.toUpperCase(), width: 'w-28' },
+                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA / TAR', rule: /^(CTA|TAR)$/i, error: 'Debe ser CTA o TAR', defaultValue: 'CTA', exportValue: value => value.toUpperCase(), width: 'w-28' },
+                { id: 'tipo', label: 'Tipo Cta', placeholder: 'CTE / AHO', rule: /^(CTE|AHO)$/i, error: 'Debe ser CTE o AHO', exportValue: value => value.toUpperCase(), width: 'w-28' },
                 { id: 'numero', label: 'Nº Cta/Tar', placeholder: '0123456789', rule: /^\d{0,20}$/, error: 'Máx 20 números', width: 'w-24' },
                 { id: 'monto', label: 'Monto Máx', placeholder: 'Opcional', rule: /^\d{0,7}$/, error: 'Máx 7 números', optional: true, hidden: true, exportValue: value => value === '' ? '999999999' : `${value}00` },
                 { id: 'email', label: 'Email', placeholder: 'Opcional (usuario@mail.com)', rule: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, optional: true },
@@ -27,12 +27,16 @@ const APP_CONFIG = {
             ],
             recommendations: {
                 items: [
-                    { label: 'Código', html: 'Hasta 50 caracteres (Cuenta, Predio, etc).' },
-                    { label: 'Forma de Pago', html: `Use ${chip('CTA')} para Débito o ${chip('TAR')} para Tarjeta.` },
-                    { label: 'Tipo', html: `${chip('CTE')}, ${chip('AHO')}, ${chip('A')}, ${chip('V')} o ${chip('M')}.` },
-                    { label: 'Nº Cuenta', html: 'Solo números, hasta 20 dígitos.' }
+                    { label: 'Código', html: 'Cuenta, predio, suministro. Hasta 50 caracteres alfanuméricos, sin espacios ni símbolos.' },
+                    { label: 'Descripción', html: 'Hasta 100 caracteres: letras, números y espacios. Sin tildes, ñ ni signos.' },
+                    { label: 'Forma Pago', html: `Viene en ${chip('CTA')}: actualmente el archivo se usa solo para pagos con débito en cuenta.` },
+                    { label: 'Tipo Cta', html: `${chip('CTE')} corriente o ${chip('AHO')} ahorros.` },
+                    { label: 'Nº Cta/Tar', html: 'Solo números, hasta 20 dígitos.' },
+                    { label: 'Email', html: `Opcional. Formato ${chip('usuario@mail.com')}.` },
+                    { label: 'Teléfono', html: 'Opcional. Solo números, hasta 10 dígitos.' }
                 ],
-                tip: 'Puedes copiar desde Excel y pegar directamente en la primera celda.'
+                tip: 'Puedes copiar desde Excel y pegar directamente en la primera celda.',
+                notice: 'Recuerda que ya no debes ingresar el monto máximo autorizado.'
             }
         },
         {
@@ -214,6 +218,7 @@ function loadGenerator() {
 
     loadFromStorage();
     applyMetadataDefaults();
+    applyColumnDefaults();
 
     renderSidebar();
     renderMetadataFields();
@@ -305,10 +310,13 @@ function renderSidebar() {
     const sidebarContent = document.getElementById('sidebar-content');
     const sidebarTip = document.getElementById('sidebar-tip');
     const sidebarTipText = document.getElementById('sidebar-tip-text');
+    const sidebarNotice = document.getElementById('sidebar-notice');
+    const sidebarNoticeText = document.getElementById('sidebar-notice-text');
 
     if (!gen.recommendations) {
         sidebarContent.innerHTML = '<p class="text-sm text-slate-400 dark:text-white/30 italic">Sin recomendaciones disponibles.</p>';
         sidebarTip.classList.add('hidden');
+        sidebarNotice.classList.add('hidden');
         return;
     }
 
@@ -325,6 +333,13 @@ function renderSidebar() {
     } else {
         sidebarTip.classList.add('hidden');
     }
+
+    if (gen.recommendations.notice) {
+        sidebarNotice.classList.remove('hidden');
+        sidebarNoticeText.textContent = gen.recommendations.notice;
+    } else {
+        sidebarNotice.classList.add('hidden');
+    }
 }
 
 function applyMetadataDefaults() {
@@ -332,6 +347,19 @@ function applyMetadataDefaults() {
         if (field.defaultValue && !currentMetadata[field.id]) {
             currentMetadata[field.id] = field.defaultValue;
         }
+    });
+}
+
+// El equivalente de applyMetadataDefaults para la grilla: rellena las celdas
+// vacías de las columnas con defaultValue al cargar, no solo al crear la fila.
+// Sin esto el preseteo no aparecería en los datos guardados de antes.
+function applyColumnDefaults() {
+    const columns = (getActiveConfig().columns || []).filter(col => col.defaultValue);
+    if (columns.length === 0) return;
+    gridData.forEach(row => {
+        columns.forEach(col => {
+            if (!row[col.id]) row[col.id] = col.defaultValue;
+        });
     });
 }
 
@@ -481,13 +509,19 @@ function renderPlaceholder() {
     lucide.createIcons();
 }
 
+// Toda fila nueva nace acá: las columnas con defaultValue arrancan con ese
+// valor en vez de vacías. El usuario lo puede sobreescribir como cualquier otro.
+function createEmptyRow(gen) {
+    const row = {};
+    gen.columns.forEach(col => row[col.id] = col.defaultValue || '');
+    return row;
+}
+
 function addRows(count) {
     const gen = getActiveConfig();
     if (!gen.columns) return;
     for (let i = 0; i < count; i++) {
-        const row = {};
-        gen.columns.forEach(col => row[col.id] = '');
-        gridData.push(row);
+        gridData.push(createEmptyRow(gen));
     }
     renderGrid();
     saveToStorage();
@@ -568,9 +602,7 @@ function handlePaste(e) {
         const targetRowIndex = startRow + i;
 
         if (!gridData[targetRowIndex]) {
-            const newRow = {};
-            gen.columns.forEach(col => newRow[col.id] = '');
-            gridData.push(newRow);
+            gridData.push(createEmptyRow(gen));
         }
 
         cells.forEach((cellValue, j) => {
