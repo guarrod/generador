@@ -121,7 +121,9 @@ module.exports = {
         // Reproduce el mapeo de handlePaste() (contra las columnas visibles) y
         // compara la salida completa contra el archivo esperado.
         const tsv = fs.readFileSync(path.join(__dirname, 'fixtures/pago-terceros-12-registros.tsv'), 'utf8');
-        const esperado = fs.readFileSync(path.join(__dirname, 'fixtures/pago-terceros-12-registros.txt'), 'utf8');
+        // Se normaliza el fin de línea: .gitattributes evita que el checkout los
+        // convierta, pero la comparación no tiene por qué depender de eso.
+        const esperado = fs.readFileSync(path.join(__dirname, 'fixtures/pago-terceros-12-registros.txt'), 'utf8').replace(/\r\n/g, '\n');
         const visibles = t.app.getVisibleColumns(gen);
         const filas = [];
         tsv.split(/\r?\n/).filter(l => l.trim() !== '').forEach((texto, i) => {
