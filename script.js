@@ -135,7 +135,7 @@ const APP_CONFIG = {
                 tip: 'Los 20 campos del formato son las 20 columnas de la grilla, en su orden: la línea del archivo es la fila tal cual. Los campos 1, 6 y 3 vienen preseteados en cada fila nueva (PA, USD y el secuencial), pero se pueden editar como cualquier otro.',
                 notice: 'El NN del nombre del archivo se edita abajo, en el campo del nombre: no es un campo del registro, es parte del nombre.'
             }
-        },
+        }
     ]
 };
 
