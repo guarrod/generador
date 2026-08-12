@@ -1,1 +1,8 @@
+# Temporales de Excel al copiar rangos
 ~$*
+
+# Basura de macOS
+.DS_Store
+
+# Configuración local del deploy (ver deploy.env.example)
+deploy.env

@@ -22,26 +22,38 @@ python -m http.server 8000
 > Tailwind, Lucide y la fuente Nunito Sans se cargan por CDN, así que hace
 > falta conexión a internet la primera vez.
 
-## Deploy
-
-Vive en `https://guarrod.com/generador/`, servido estático desde
-`/var/www/demos/generador/` en el VPS (`pulsar`), que es un clon git del
-mismo repo. Publicar:
+## Verificar un cambio
 
 ```bash
+node tests/run.js     # o npm test
+```
+
+Sin dependencias: no hace falta `npm install`. Las suites comprueban las reglas
+de validación y, sobre todo, la línea que sale al archivo — que es lo que el
+banco rechaza si se rompe y lo único que no se nota mirando la pantalla. Detalle
+en [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+## Deploy
+
+Es un sitio estático: alcanza con servir la carpeta desde cualquier servidor.
+
+Hay un script que publica `main` en un servidor por SSH. La configuración es
+local y no se versiona:
+
+```bash
+cp deploy.env.example deploy.env   # completar con el host y el directorio
 ./deploy.sh
 ```
 
-Hace `git push` a `main` y después `git pull` en el servidor. Requiere el
-alias SSH `pulsar` configurado.
+Hace `git push` de `main` y después `git pull` en el servidor, que tiene que ser
+un clon git de este mismo repo.
 
 ## Generadores disponibles
 
-En esta rama la herramienta sirve **un solo generador**, sin barra de pestañas.
-
-> Los otros tres —Pago a Terceros, la réplica del formato oficial de Banco
-> Guayaquil y Recaudación Batch— viven en la rama **`pestanas`**, junto con la
-> navegación por pestañas que permite saltar entre ellos.
+Esta entrega trae **un solo generador**, sin barra de pestañas. Las siguientes
+suman uno cada una y reponen la navegación; ver
+[`docs/estado.md`](docs/estado.md) antes de simplificar la arquitectura
+multi-generador.
 
 ### 1. Pago de Servicios
 
@@ -87,10 +99,13 @@ completa con `999999999`; si tiene valor se le agregan los centavos (`00`).
 ## Estructura
 
 ```
-index.html    Layout: header, grilla, panel de recomendaciones
-script.js     APP_CONFIG (definición de cada generador) + toda la lógica
-styles.css    Lo que no cubre Tailwind: fondo punteado, date picker, scrollbars
-assets/       logo.png
+index.html        Layout: header, grilla, panel de recomendaciones
+script.js         APP_CONFIG (definición de cada generador) + toda la lógica
+styles.css        Lo que no cubre Tailwind: fondo punteado, date picker, scrollbars
+assets/           logo.png
+tests/            Suites de verificación (node tests/run.js)
+docs/estado.md    Alcance, supuestos abiertos y decisiones conocidas
+ARCHITECTURE.md   Cómo está armado y cómo extenderlo
 ```
 
 ## Agregar un generador
@@ -98,8 +113,9 @@ assets/       logo.png
 No hace falta tocar la lógica de render: agregá un objeto a
 `APP_CONFIG.generators` en [`script.js`](script.js) con sus columnas, reglas de
 validación y recomendaciones. La grilla, la validación y la persistencia salen
-de ahí. Ver [`CLAUDE.md`](CLAUDE.md) para el detalle de cada campo de la config.
+de ahí. Ver [`ARCHITECTURE.md`](ARCHITECTURE.md) para el detalle de cada campo
+de la config.
 
-Ojo: en esta rama no hay barra de pestañas, así que un segundo objeto en el
-array quedaría sin forma de llegar — la app siempre muestra el primero. Si
-necesitás más de un generador, la navegación está en la rama `pestanas`.
+Ojo: en esta entrega no hay barra de pestañas, así que un segundo objeto en el
+array quedaría sin forma de llegar — la app siempre muestra el primero. Reponer
+la navegación es parte de la entrega 2; ver [`docs/estado.md`](docs/estado.md).

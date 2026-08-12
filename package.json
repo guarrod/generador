@@ -1,0 +1,13 @@
+{
+    "name": "generador-carga-masiva",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Generador de archivos TXT de carga masiva para Banco Guayaquil. App estática sin build ni dependencias.",
+    "scripts": {
+        "test": "node tests/run.js"
+    },
+    "comentario": "No hay dependencias y no hace falta npm install: la app es HTML+CSS+JS vanilla y los tests corren con Node pelado. Este archivo existe solo para que `npm test` funcione como se espera.",
+    "engines": {
+        "node": ">=18"
+    }
+}
