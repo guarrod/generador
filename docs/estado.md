@@ -89,7 +89,24 @@ Vale la pena una advertencia cuando una fila se aparta del resto.
 node tests/run.js
 ```
 
+Corre sola en cada push y en cada pull request
+([.github/workflows/tests.yml](../.github/workflows/tests.yml)), sobre cualquier
+rama y sin instalar nada.
+
 Las suites comprueban las reglas de validación y, sobre todo, **la línea que sale
 al archivo**. Es la parte que el banco rechaza si se rompe, y la que no se nota
 mirando la pantalla. Si tocan una regla o el formato de exportación, la suite
 tiene que acompañar el cambio en el mismo commit.
+
+Están organizadas alrededor del riesgo de arrastre entre formatos:
+
+- **`motor.test.js`** fija el contrato de las funciones compartidas contra
+  generadores de mentira, así que no depende de qué entrega esté instalada. Es
+  la que avisa cuando un arreglo pensado para un formato le cambia el
+  comportamiento a los otros.
+- **Una suite por generador**, cada una con un **golden file**: un fixture que se
+  pega como desde Excel y el `.txt` exacto que tiene que salir. Si el motor
+  cambia y mueve un solo carácter de ese archivo, falla.
+
+Ver [ARCHITECTURE.md](../ARCHITECTURE.md) para cuándo un cambio pertenece a la
+config y cuándo es un cambio de contrato para todos los generadores.
