@@ -28,14 +28,9 @@ module.exports = {
         if (!gen) return saltear('el generador no está en esta entrega');
         const col = id => gen.columns.find(c => c.id === id);
 
-        // ── Las 20 posiciones existen; 13 se cargan a mano ──────────────────
-        // Siete columnas están ocultas para no cargar la grilla, pero se siguen
-        // exportando en su posición: las constantes con su valor (PA, USD) y las
-        // opcionales vacías. El archivo no cambia por esconderlas.
+        // ── El formato es la grilla ─────────────────────────────────────────
         check('20 campos del formato = 20 columnas', gen.columns.length, 20);
-        check('13 columnas en la grilla', t.app.getVisibleColumns(gen).length, 13);
-        check('las 7 ocultas son las esperadas', gen.columns.filter(c => c.hidden).map(c => c.id),
-            ['codigo_orientacion', 'moneda', 'direccion', 'ciudad', 'telefono', 'localidad_pago', 'referencia_adicional']);
+        check('ninguna columna oculta', gen.columns.filter(c => c.hidden).length, 0);
         check('ningún campo suelto arriba de la grilla', gen.metadata, undefined);
         check('sin exportRow: la línea es el volcado de la fila', gen.exportRow, undefined);
         check('las columnas están en el orden del formato', gen.columns.map(c => c.id), [
@@ -121,11 +116,6 @@ module.exports = {
         const hoy = t.app.formatDate(new Date());
         check('propone el nombre con la fecha de hoy y NN 01', t.app.getDefaultFilename(gen), `BENEFICIARIO_${hoy}_01`);
         check('el campo del nombre queda editable, para cambiar el NN', gen.filename, undefined);
-
-        // Una columna oculta sigue viajando en el archivo con su valor.
-        check('el campo 1 se exporta aunque no se vea', campos[0], 'PA');
-        check('el campo 6 se exporta aunque no se vea', campos[5], 'USD');
-        check('las ocultas opcionales viajan vacías', [campos[14], campos[15], campos[16], campos[17], campos[19]], ['', '', '', '', '']);
 
         // ── Golden file: 12 registros pegados desde Excel ───────────────────
         // Reproduce el mapeo de handlePaste() (contra las columnas visibles) y

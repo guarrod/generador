@@ -42,14 +42,8 @@ const APP_CONFIG = {
         // Sigue el formato tal como lo publica Banco Guayaquil en el centro de
         // ayuda (artículo 11032985670804, actualizado 2026-08-09): los 20 campos,
         // en su orden, con la longitud y la observación de cada uno transcritas
-        // en docs/formato-pago-terceros.md.
-        //
-        // Las 20 columnas están todas acá y todas se exportan; siete llevan
-        // `hidden: true` para no cargar la grilla con campos que el usuario no
-        // completa. Para volver a mostrar cualquiera alcanza con borrarle ese
-        // `hidden: true` y agregarle su item en `recommendations`, que por
-        // convención lleva uno por columna visible. Nada más: el archivo no
-        // cambia, porque las columnas ocultas ya se exportan en su posición.
+        // en docs/formato-pago-terceros.md. Ninguna columna está oculta: lo que
+        // se ve en la grilla es exactamente lo que va al archivo.
         {
             id: 'pago_terceros',
             label: 'Pago a Terceros',
@@ -58,12 +52,12 @@ const APP_CONFIG = {
             storageKey: 'bg_gen_pago_terceros_data',
             defaultFilename: () => `BENEFICIARIO_${formatDate(new Date())}_01`,
             columns: [
-                { id: 'codigo_orientacion', label: 'Cód. Orientación', placeholder: 'PA', options: ['PA'], rule: /^PA$/i, error: 'Campo 1 · Alfanumérico/2. PA = Pago', defaultValue: 'PA', exportValue: value => value.toUpperCase(), width: 'w-32', hidden: true },
+                { id: 'codigo_orientacion', label: 'Cód. Orientación', placeholder: 'PA', options: ['PA'], rule: /^PA$/i, error: 'Campo 1 · Alfanumérico/2. PA = Pago', defaultValue: 'PA', exportValue: value => value.toUpperCase(), width: 'w-32' },
                 { id: 'cuenta_empresa', label: 'Cuenta Empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Campo 2 · Numérico/10. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar', exportValue: value => padLeft(value, 10), width: 'w-32' },
                 { id: 'secuencial_pago', label: 'Secuencial', placeholder: '1', rule: /^\d{1,7}$/, error: 'Campo 3 · Numérico/7. Arranca en 1 dentro de la orden', defaultValue: index => String(index + 1), width: 'w-24' },
                 { id: 'comprobante', label: 'Comprobante', placeholder: 'Egreso, planilla...', rule: /^[^,]{0,20}$/, error: 'Campo 4 · Alfanumérico/20, opcional', optional: true },
                 { id: 'codigo', label: 'Código', placeholder: 'Cuenta o ID del proveedor', rule: /^[^,]{1,20}$/, error: 'Campo 5 · Alfanumérico/20. Con CTA, la cuenta del proveedor; en ventanilla, su identificación' },
-                { id: 'moneda', label: 'Moneda', placeholder: 'USD', options: ['USD'], rule: /^USD$/i, error: 'Campo 6 · Alfanumérico/3. USD = Dólares', defaultValue: 'USD', exportValue: value => value.toUpperCase(), width: 'w-24', hidden: true },
+                { id: 'moneda', label: 'Moneda', placeholder: 'USD', options: ['USD'], rule: /^USD$/i, error: 'Campo 6 · Alfanumérico/3. USD = Dólares', defaultValue: 'USD', exportValue: value => value.toUpperCase(), width: 'w-24' },
                 { id: 'valor', label: 'Valor', placeholder: '12645.76', rule: /^\d{1,11}([.,]\d{1,2})?$/, error: 'Campo 7 · Numérico/13: 11 enteros y 2 decimales', exportValue: (value, row) => formatTerceroAmount(value), width: 'w-28' },
                 { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA', options: ['CTA', 'CHQ', 'EFE'], rule: /^(CTA|CHQ|EFE)$/i, error: 'Campo 8 · CTA crédito a cuenta, CHQ cheque, EFE efectivo', exportValue: value => value.toUpperCase(), width: 'w-28' },
                 {
@@ -101,27 +95,28 @@ const APP_CONFIG = {
                     exportValue: value => value.toUpperCase()
                 },
                 { id: 'nombre', label: 'Nombre Beneficiario', placeholder: 'Proveedor S.A.', rule: /^[^,]{1,40}$/, error: 'Campo 14 · Alfanumérico/40' },
-                { id: 'direccion', label: 'Dirección', placeholder: 'Opcional', rule: /^[^,]{0,40}$/, error: 'Campo 15 · Alfanumérico/40, opcional', optional: true, hidden: true },
-                { id: 'ciudad', label: 'Ciudad', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Campo 16 · Alfanumérico/20, opcional', optional: true, hidden: true },
-                { id: 'telefono', label: 'Teléfono', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Campo 17 · Alfanumérico/20, opcional', optional: true, hidden: true },
+                { id: 'direccion', label: 'Dirección', placeholder: 'Opcional', rule: /^[^,]{0,40}$/, error: 'Campo 15 · Alfanumérico/40, opcional', optional: true },
+                { id: 'ciudad', label: 'Ciudad', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Campo 16 · Alfanumérico/20, opcional', optional: true },
+                { id: 'telefono', label: 'Teléfono', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Campo 17 · Alfanumérico/20, opcional', optional: true },
                 {
                     id: 'localidad_pago', label: 'Localidad Pago', placeholder: 'QUITO, GUAYAQUIL...',
                     rule: (value, row) => isCreditoCuenta(row) ? value === '' : /^[^,]{0,20}$/.test(value),
                     error: 'Campo 18 · Alfanumérico/20. Con CTA va en blanco; con CHQ o EFE, en blanco = cualquier localidad',
-                    exportValue: value => value.toUpperCase(),
-                    hidden: true
+                    exportValue: value => value.toUpperCase()
                 },
                 { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^,]{1,200}$/, error: 'Campo 19 · Alfanumérico/200. Es lo que se imprime como nº de factura en la notificación' },
-                { id: 'referencia_adicional', label: 'Ref. Adicional', placeholder: '|proveedor@mail.com', rule: /^[^,]{0,100}$/, error: 'Campo 20 · Alfanumérico/100, opcional. Para notificar por correo: pipe y después la dirección', optional: true, hidden: true }
+                { id: 'referencia_adicional', label: 'Ref. Adicional', placeholder: '|proveedor@mail.com', rule: /^[^,]{0,100}$/, error: 'Campo 20 · Alfanumérico/100, opcional. Para notificar por correo: pipe y después la dirección', optional: true }
             ],
             // Sin exportRow: las 20 columnas ya están en el orden del formato, así
             // que la línea es el volcado 1:1 que hace exportTxt() por defecto.
             recommendations: {
                 items: [
+                    { label: 'Cód. Orientación', html: `Campo 1 · ${chip('Alfanumérico/2')}. Indica el código del servicio: ${chip('PA')} = Pago. Viene puesto en cada fila.` },
                     { label: 'Cuenta Empresa', html: `Campo 2 · ${chip('Numérico/10')}. La cuenta de la empresa que se usa para el servicio. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar: ${chip('1234567')} sale ${chip('0001234567')}.` },
                     { label: 'Secuencial', html: `Campo 3 · ${chip('Numérico/7')}. Arranca en 1 dentro de la orden y se numera solo por fila. Podés cambiarlo: los desgloses de rubros solo aplican a pagos en ventanilla.` },
                     { label: 'Comprobante', html: `Campo 4 · ${chip('Alfanumérico/20')}, opcional. Comprobante de pago, egreso, planilla. No hace falta rellenar con ceros.` },
                     { label: 'Código', html: `Campo 5 · ${chip('Alfanumérico/20')}. Con ${chip('CTA')}, la cuenta del proveedor; en ventanilla, su identificación. También admite código de beneficiario o de proveedor.` },
+                    { label: 'Moneda', html: `Campo 6 · ${chip('Alfanumérico/3')}. Código de la moneda del movimiento: ${chip('USD')} = Dólares. Viene puesto en cada fila.` },
                     { label: 'Valor', html: `Campo 7 · ${chip('Numérico/13')}: 11 enteros y 2 decimales. ${chip('12645.76')} se exporta ${chip('0000001264576')}.` },
                     { label: 'Forma Pago', html: `Campo 8 · ${chip('CTA')} crédito a cuenta, ${chip('CHQ')} cheque, ${chip('EFE')} efectivo.` },
                     { label: 'Cód. Institución', html: `Campo 9 · ${chip('Alfanumérico/4')} o ${chip('/15')}. Con ${chip('CHQ')} o ${chip('EFE')} debe ser ${chip('0017')} (BG). Con ${chip('CTA')} local son 4 dígitos: ver el Anexo 4 del banco.` },
@@ -130,9 +125,14 @@ const APP_CONFIG = {
                     { label: 'Tipo ID', html: `Campo 12 · ${chip('C')} cédula, ${chip('R')} RUC, ${chip('P')} pasaporte.` },
                     { label: 'Nº ID', html: 'Campo 13 · Cédula 10 dígitos, RUC 13 dígitos, pasaporte hasta 13 caracteres.' },
                     { label: 'Nombre Beneficiario', html: `Campo 14 · ${chip('Alfanumérico/40')}.` },
-                    { label: 'Referencia', html: `Campo 19 · ${chip('Alfanumérico/200')}: el número de factura. Es lo que se imprime en la notificación al beneficiario.` }
+                    { label: 'Dirección', html: `Campo 15 · ${chip('Alfanumérico/40')}, opcional.` },
+                    { label: 'Ciudad', html: `Campo 16 · ${chip('Alfanumérico/20')}, opcional.` },
+                    { label: 'Teléfono', html: `Campo 17 · ${chip('Alfanumérico/20')}, opcional.` },
+                    { label: 'Localidad Pago', html: `Campo 18 · Con ${chip('CTA')} va en blanco. Con ${chip('CHQ')} o ${chip('EFE')}: en blanco = cualquier localidad, o ${chip('QUITO')}, ${chip('GUAYAQUIL')}, ${chip('CUENCA')}...` },
+                    { label: 'Referencia', html: `Campo 19 · ${chip('Alfanumérico/200')}: el número de factura. Es lo que se imprime en la notificación al beneficiario.` },
+                    { label: 'Ref. Adicional', html: `Campo 20 · ${chip('Alfanumérico/100')}, opcional. Para avisar por correo, primero el pipe y después la dirección: ${chip('|proveedor@mail.com')}.` }
                 ],
-                tip: 'El archivo sale igual con los 20 campos del formato. Los que no están en la grilla viajan con su valor fijo — PA en el código de orientación y USD en la moneda — o vacíos, que es lo que el banco espera cuando no se usan. El secuencial se numera solo desde 1 y se puede editar.',
+                tip: 'Los 20 campos del formato son las 20 columnas de la grilla, en su orden: la línea del archivo es la fila tal cual. Los campos 1, 6 y 3 vienen preseteados en cada fila nueva (PA, USD y el secuencial), pero se pueden editar como cualquier otro.',
                 notice: 'El NN del nombre del archivo se edita abajo, en el campo del nombre: no es un campo del registro, es parte del nombre.'
             }
         }

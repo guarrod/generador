@@ -146,13 +146,17 @@ Cinco puntos de extensión declarativos, todos opcionales y retrocompatibles:
   si y solo si **ese** valor es válido, y tiene que serlo pase lo que pase en el
   resto de la fila, porque las reglas de función miran las otras celdas.
 
-  Eso se cumple de tres formas, y las tres están en uso:
+  Eso se cumple de tres formas:
 
   | Forma | Ejemplo |
   | ----- | ------- |
-  | La columna es `optional` | Dirección, Ciudad, Teléfono, Ref. Adicional, Monto Máx |
-  | Tiene un `defaultValue` constante que cumple su regla | Cód. Orientación (`PA`), Moneda (`USD`) |
-  | Su regla de función acepta el vacío siempre | Localidad de pago: con `CTA` el formato la exige en blanco, y con `CHQ`/`EFE` en blanco significa "cualquier localidad" |
+  | La columna es `optional` | **Monto Máx**, de Pago de Servicios: es la única columna oculta hoy |
+  | Tiene un `defaultValue` constante que cumple su regla | Sería el caso de Cód. Orientación (`PA`) o Moneda (`USD`) en Pago a Terceros |
+  | Su regla de función acepta el vacío siempre | Sería el caso de Localidad de pago: con `CTA` el formato la exige en blanco, y con `CHQ`/`EFE` en blanco significa "cualquier localidad" |
+
+  Las dos últimas están anotadas porque en Pago a Terceros se ocultaron esas
+  columnas un rato y después se revirtió: si vuelve a plantearse, el análisis ya
+  está hecho y el invariante lo verifica solo.
 
   No hace falta acordarse: `tests/motor.test.js` recorre las columnas ocultas de
   todos los generadores y verifica el invariante. Si alguien esconde una columna
