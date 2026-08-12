@@ -135,10 +135,31 @@ Cinco puntos de extensión declarativos, todos opcionales y retrocompatibles:
   a tomar el default en la próxima carga — misma semántica que
   `applyMetadataDefaults()` para la metadata.
 - **`hidden`** saca la columna de la grilla sin sacarla del archivo: se sigue
-  inicializando en cada fila y se sigue exportando (vacía) en su posición. Es
-  para esconder campos opcionales de un formato de posiciones fijas. Solo en
-  columnas opcionales: una columna oculta no se valida, y nadie podría corregir
-  un error que no ve.
+  inicializando en cada fila y se sigue exportando en su posición, con su
+  `defaultValue` o vacía. Sirve para no cargar la pantalla con campos que el
+  usuario no completa, sin mover una sola posición del formato.
+
+  **La condición para que sea seguro:** una columna oculta **no se valida** —
+  nadie puede corregir un error que no ve, y la descarga nunca se bloquearía por
+  ella— y el usuario **no puede cambiarle el valor**, así que la celda se queda
+  para siempre con lo que le puso `defaultValue`, o vacía. Esconderla es seguro
+  si y solo si **ese** valor es válido, y tiene que serlo pase lo que pase en el
+  resto de la fila, porque las reglas de función miran las otras celdas.
+
+  Eso se cumple de tres formas, y las tres están en uso:
+
+  | Forma | Ejemplo |
+  | ----- | ------- |
+  | La columna es `optional` | Dirección, Ciudad, Teléfono, Ref. Adicional, Monto Máx |
+  | Tiene un `defaultValue` constante que cumple su regla | Cód. Orientación (`PA`), Moneda (`USD`) |
+  | Su regla de función acepta el vacío siempre | Localidad de pago: con `CTA` el formato la exige en blanco, y con `CHQ`/`EFE` en blanco significa "cualquier localidad" |
+
+  No hace falta acordarse: `tests/motor.test.js` recorre las columnas ocultas de
+  todos los generadores y verifica el invariante. Si alguien esconde una columna
+  que puede quedar inválida, falla ahí y no en un archivo que el banco rechaza.
+
+  **Para volver a mostrar una columna** alcanza con borrarle el `hidden: true` y
+  devolverle su item en `recommendations`. El archivo exportado no cambia.
 
 El corte entre "lo que se ve" y "lo que se exporta" es `getVisibleColumns()`:
 lo usan `renderHeader`, `renderGrid`, `validateGrid` y `handlePaste` (el pegado
