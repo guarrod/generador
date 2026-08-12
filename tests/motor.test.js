@@ -95,6 +95,38 @@ module.exports = {
         check('filename función deshabilita el campo', app.hasAutoFilename({ filename: () => 'x' }), true);
         check('defaultFilename no lo deshabilita', app.hasAutoFilename({ defaultFilename: () => 'x' }), false);
 
+        // ── Invariante de `hidden` ───────────────────────────────────────────
+        // Una columna oculta no se valida —nadie puede corregir un error que no
+        // ve, y la descarga no se bloquearía nunca por ella— y el usuario no
+        // puede cambiarle el valor: la celda se queda para siempre con lo que le
+        // puso `defaultValue`, o vacía. Esconderla es seguro si y solo si ESE
+        // valor es válido, y lo tiene que ser pase lo que pase en el resto de la
+        // fila, porque las reglas de función miran las otras celdas.
+        //
+        // Cubre las tres formas de que lo sea: la columna es `optional`, tiene un
+        // `defaultValue` que cumple su propia regla, o su regla de función acepta
+        // el vacío en cualquier caso (es lo de Localidad de pago: con CTA el
+        // formato la exige en blanco, y con CHQ o EFE en blanco significa
+        // "cualquier localidad").
+        //
+        // Recorre TODOS los generadores instalados: si alguien esconde una
+        // columna que puede quedar inválida, falla acá y no en un archivo que el
+        // banco rechaza.
+        const filasRepresentativas = g => {
+            const filas = [{}];
+            (g.columns || []).filter(c => c.options).forEach(c =>
+                c.options.forEach(opcion => filas.push({ [c.id]: opcion })));
+            return filas;
+        };
+        app.APP_CONFIG.generators.forEach(g => {
+            const filas = filasRepresentativas(g);
+            (g.columns || []).filter(c => c.hidden).forEach(c => {
+                const valor = app.getColumnDefault(c, 0);
+                const rotas = filas.filter(fila => !app.isCellValid(c, valor, fila));
+                check(`oculta y segura · ${g.id} → ${c.label}`, rotas, []);
+            });
+        });
+
         // ── Los generadores instalados no comparten estado ───────────────────
         const generadores = app.APP_CONFIG.generators;
         const claves = generadores.flatMap(g => [g.storageKey, g.metadataKey, g.filenameKey].filter(Boolean));

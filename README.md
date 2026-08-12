@@ -85,20 +85,17 @@ Sigue el formato publicado por Banco Guayaquil, transcrito campo por campo en
 tenerlo al lado, porque la página del banco no se puede consultar de forma
 automática.
 
-**Los 20 campos del formato son las 20 columnas de la grilla, en su orden**: la
-línea del archivo es la fila tal cual. No hay columnas ocultas ni campos sueltos
-arriba de la tabla, así que lo que se ve es lo que se exporta.
+**El archivo lleva siempre los 20 campos del formato, pero la grilla pide solo
+13**: los otros siete no se completan a mano y viajan con su valor fijo o
+vacíos, que es lo que el banco espera cuando no se usan. Las posiciones del
+archivo no se mueven.
 
-Tres campos vienen preseteados en cada fila nueva, y se pueden editar igual:
-
-- **Cód. Orientación** en `PA` y **Moneda** en `USD`, los únicos valores que
-  define el formato.
-- **Secuencial**, numerado solo desde 1. Queda editable a propósito: el formato
-  lo vincula al desglose de rubros de los pagos en ventanilla.
+Las 13 que se cargan:
 
 | Columna | Regla | Obligatorio |
 | ------- | ----- | ----------- |
 | Cuenta Empresa | Hasta 10 dígitos; se completa con ceros a la izquierda al exportar | Sí |
+| Secuencial | Se numera solo desde 1; editable | Sí |
 | Comprobante | Hasta 20 caracteres, sin comas | No |
 | Código | Hasta 20 caracteres: cuenta del proveedor con `CTA`, identificación en ventanilla | Sí |
 | Valor | Hasta 11 enteros y 2 decimales (`12645.76` → `0000001264576`) | Sí |
@@ -109,10 +106,25 @@ Tres campos vienen preseteados en cada fila nueva, y se pueden editar igual:
 | Tipo ID | `C` cédula, `R` RUC, `P` pasaporte | Sí |
 | Nº ID | Cédula 10 dígitos, RUC 13, pasaporte hasta 13 | Sí |
 | Nombre Beneficiario | Hasta 40 caracteres | Sí |
-| Dirección · Ciudad · Teléfono | Hasta 40 / 20 / 20 caracteres | No |
-| Localidad Pago | Hasta 20 caracteres; en blanco con `CTA` | No |
 | Referencia | Hasta 200 caracteres: el nº de factura | Sí |
-| Ref. Adicional | Hasta 100 caracteres. Con `\|correo@dominio.com` se notifica al beneficiario | No |
+
+Las 7 que no se ven, y con qué se exportan:
+
+| Campo | Va al archivo con |
+| ----- | ----------------- |
+| Cód. Orientación (1) | `PA`, el único código de servicio del formato |
+| Moneda (6) | `USD`, la única moneda del formato |
+| Dirección (15) · Ciudad (16) · Teléfono (17) | Vacío — son opcionales |
+| Localidad de pago (18) | Vacío = "cualquier localidad" |
+| Ref. Adicional (20) | Vacío |
+
+> Con Ref. Adicional oculta no se puede pedir la **notificación por correo al
+> beneficiario** (`|proveedor@mail.com`), que es la única vía que da el formato.
+> Para habilitarla hay que volver a mostrar esa columna.
+
+Mostrar cualquiera de las siete es borrarle el `hidden: true` en `APP_CONFIG` y
+devolverle su item en `recommendations`. El archivo exportado no cambia — ver
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 Reglas que dependen de la forma de pago, controladas en vivo:
 
