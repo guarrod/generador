@@ -1,0 +1,7 @@
+# deploy.sh se ejecuta en un servidor Linux: siempre LF, aunque se edite en
+# Windows. Con CRLF el shebang no resuelve y el script no arranca.
+*.sh text eol=lf
+
+# Los fixtures de tests/ se comparan byte a byte contra la salida del
+# generador: no deben pasar por ninguna conversión de fin de línea.
+tests/fixtures/** -text
