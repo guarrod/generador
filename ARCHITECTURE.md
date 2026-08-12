@@ -53,6 +53,33 @@ escribir código de render.** Si un formato nuevo no entra en la config, la
 solución es extender la config (una propiedad declarativa nueva) antes que
 ramificar la lógica con `if (gen.id === '...')`.
 
+### Por qué esto importa para no romper otro formato
+
+Cambiar el objeto de un generador **no puede** afectar a los demás: son datos
+separados, con su propia clave de `localStorage`. El riesgo de romper Pago de
+Servicios arreglando Pago a Terceros vive en un solo lugar: **las funciones que
+los tres comparten** — `isCellValid`, `getExportValue`, `createEmptyRow`,
+`getColumnDefault`, `handlePaste`, `validateGrid`, `padLeft`/`padRight`.
+
+De ahí la forma de trabajar:
+
+1. **Primero intentá resolverlo en la config.** Si el cambio entra en el objeto
+   del generador, no hay riesgo de arrastre y no hace falta más.
+2. **Si tenés que tocar el motor, es un cambio de contrato para todos.** No es
+   "un arreglo de Terceros": es un cambio que también le pasa a Servicios y a
+   Recaudación. Decidilo a propósito.
+3. **La suite es el criterio de aceptación.** `tests/motor.test.js` fija el
+   contrato de esas funciones contra generadores de mentira, y cada generador
+   tiene un *golden file* que fija su archivo byte a byte. Si tocás el motor y
+   el golden de otro formato se mueve, ese archivo cambió — y el banco lo va a
+   notar aunque en la pantalla no se vea nada.
+
+Ejemplo real: para que el secuencial de Pago a Terceros se numerara solo,
+`defaultValue` pasó a aceptar una función además de un valor fijo. Eso tocó
+`createEmptyRow()`, que usan los tres generadores. Entró sin romper nada porque
+el cambio fue aditivo —`getColumnDefault()` sigue devolviendo lo mismo para los
+valores fijos— y las suites de los otros dos formatos lo confirmaron.
+
 Campos de un generador:
 
 | Campo             | Para qué                                                          |

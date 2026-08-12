@@ -1,0 +1,20 @@
+name: Tests
+
+# Corre en cada push y en cada pull request, sobre cualquier rama. Es lo que
+# convierte a las suites en una red de verdad: un cambio pensado para un
+# generador que rompe otro se ve acá, antes de mezclar.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Sin `npm install`: el proyecto no tiene dependencias.
+      - name: Verificar reglas y archivos exportados
+        run: node tests/run.js

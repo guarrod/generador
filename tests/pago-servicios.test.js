@@ -2,6 +2,8 @@
 //
 // El archivo son campos separados por punto y coma, una línea por registro, sin
 // cabecera. La columna Monto Máx está oculta pero se sigue exportando.
+const fs = require('fs');
+const path = require('path');
 const { cargarApp } = require('./harness.js');
 
 module.exports = {
@@ -76,5 +78,26 @@ module.exports = {
         check('la columna oculta no tiene item', gen.recommendations.items.some(i => /monto/i.test(i.label)), false);
         check('el aviso del monto máximo está declarado',
             gen.recommendations.notice, 'Recuerda que ya no debes ingresar el monto máximo autorizado.');
+
+        // ── Golden file: 10 registros pegados desde Excel ───────────────────
+        // Fija la salida byte a byte. Es la red que avisa cuando un cambio
+        // pensado para OTRO generador toca el motor y mueve este archivo.
+        const tsv = fs.readFileSync(path.join(__dirname, 'fixtures/pago-servicios-10-registros.tsv'), 'utf8');
+        const esperado = fs.readFileSync(path.join(__dirname, 'fixtures/pago-servicios-10-registros.txt'), 'utf8').replace(/\r\n/g, '\n');
+        const visibles = t.app.getVisibleColumns(gen);
+        const filas = [];
+        tsv.split(/\r?\n/).filter(l => l.trim() !== '').forEach((texto, i) => {
+            filas[i] = t.fila(gen, {}, i);
+            texto.split('\t').forEach((celda, j) => {
+                if (visibles[j]) filas[i][visibles[j].id] = celda.trim();
+            });
+        });
+        check('el fixture trae 10 registros', filas.length, 10);
+        check('ninguna celda inválida en los 10',
+            filas.flatMap((fila, i) => gen.columns
+                .filter(c => !t.app.isCellValid(c, String(fila[c.id] || '').trim(), fila))
+                .map(c => `fila ${i + 1} · ${c.label}`)), []);
+        check('el archivo generado es idéntico al esperado',
+            filas.map(fila => t.linea(gen, fila)).join('\n') + '\n', esperado);
     },
 };
