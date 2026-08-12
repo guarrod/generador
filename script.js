@@ -3,7 +3,6 @@ const chip = text => `<code class="bg-slate-100 dark:bg-white/10 px-1 rounded te
 const APP_CONFIG = {
     themeKey: 'bg_generator_theme',
     sidebarKey: 'bg_generator_sidebar',
-    activeGeneratorKey: 'bg_generator_active',
     defaultRows: 1,
     generators: [
         {
@@ -38,231 +37,15 @@ const APP_CONFIG = {
                 tip: 'Puedes copiar desde Excel y pegar directamente en la primera celda.',
                 notice: 'Recuerda que ya no debes ingresar el monto máximo autorizado.'
             }
-        },
-        {
-            id: 'pago_terceros',
-            label: 'Pago a Terceros',
-            title: 'Generador de Pago a Terceros (Cash Management)',
-            description: 'Genera el archivo BENEFICIARIO para cargar pagos masivos a proveedores en Banca Empresas.',
-            storageKey: 'bg_gen_pago_terceros_data',
-            metadataKey: 'bg_gen_pago_terceros_metadata',
-            filename: metadata => `BENEFICIARIO_${formatDate(new Date())}_${(metadata.secuencia_archivo || '01').trim()}`,
-            metadata: [
-                { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Hasta 10 dígitos. Al exportar se completa con ceros a la izquierda' },
-                { id: 'secuencia_archivo', label: 'Secuencia del archivo', placeholder: '01', rule: /^\d{2}$/, error: 'Dos dígitos (01, 02, 03...). Súbela para el segundo archivo del día: Banca Empresas rechaza dos cargas con el mismo nombre', defaultValue: '01' }
-            ],
-            columns: [
-                { id: 'comprobante', label: 'Comprobante', placeholder: 'EGR-0012, planilla...', rule: /^[^,]{0,20}$/, error: 'Máx 20 caracteres, sin comas', optional: true },
-                { id: 'codigo', label: 'Código', placeholder: 'Cuenta o ID del proveedor', rule: /^[^,]{1,20}$/, error: 'Máx 20 caracteres, sin comas' },
-                { id: 'valor', label: 'Valor', placeholder: '12645.76', rule: /^\d{1,11}([.,]\d{1,2})?$/, error: 'Hasta 11 enteros y 2 decimales. Ej: 12645.76' },
-                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA', options: ['CTA', 'CHQ', 'EFE'], rule: /^(CTA|CHQ|EFE)$/i, error: 'CTA (crédito a cuenta), CHQ (cheque) o EFE (efectivo)', exportValue: value => value.toUpperCase() },
-                {
-                    id: 'codigo_institucion', label: 'Cód. Institución', placeholder: '0017',
-                    rule: (value, row) => isVentanilla(row) ? value === '0017' : /^([a-zA-Z0-9]{4}|[a-zA-Z0-9]{15})$/.test(value),
-                    error: '4 o 15 caracteres (0017 = Banco Guayaquil). Con CHQ o EFE debe ser 0017'
-                },
-                {
-                    id: 'tipo_cuenta', label: 'Tipo Cuenta', placeholder: 'CTE / AHO', options: ['CTE', 'AHO'],
-                    rule: (value, row) => isCreditoCuenta(row) ? /^(CTE|AHO)$/i.test(value) : value === '',
-                    error: 'CTE o AHO cuando la forma de pago es CTA; vacío con CHQ o EFE',
-                    exportValue: value => value.toUpperCase()
-                },
-                {
-                    id: 'numero_cuenta', label: 'Nº Cuenta', placeholder: '0001234567',
-                    rule: (value, row) => {
-                        if (!isCreditoCuenta(row)) return value === '';
-                        return isBancoGuayaquil(row) ? /^\d{1,10}$/.test(value) : /^[a-zA-Z0-9]{1,30}$/.test(value);
-                    },
-                    error: 'Obligatorio con CTA (BG hasta 10 dígitos, otros bancos hasta 30); vacío con CHQ o EFE',
-                    exportValue: (value, row) => formatTerceroAccount(value, row)
-                },
-                { id: 'tipo_id', label: 'Tipo ID', placeholder: 'C / R / P', options: ['C', 'R', 'P'], rule: /^[CRP]$/i, error: 'C (cédula), R (RUC) o P (pasaporte)', exportValue: value => value.toUpperCase() },
-                {
-                    id: 'numero_id', label: 'Nº ID', placeholder: '0912378320',
-                    rule: (value, row) => {
-                        const tipo = normalizeId(row.tipo_id);
-                        if (tipo === 'C') return /^\d{10}$/.test(value);
-                        if (tipo === 'R') return /^\d{13}$/.test(value);
-                        return /^[a-zA-Z0-9]{1,13}$/.test(value);
-                    },
-                    error: 'Cédula: 10 dígitos. RUC: 13 dígitos. Pasaporte: hasta 13 caracteres',
-                    exportValue: value => value.toUpperCase()
-                },
-                { id: 'nombre', label: 'Nombre Beneficiario', placeholder: 'Proveedor S.A.', rule: /^[^,]{1,40}$/, error: 'Máx 40 caracteres, sin comas' },
-                { id: 'direccion', label: 'Dirección', placeholder: 'Opcional', rule: /^[^,]{0,40}$/, error: 'Máx 40 caracteres, sin comas', optional: true, hidden: true },
-                { id: 'ciudad', label: 'Ciudad', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Máx 20 caracteres, sin comas', optional: true, hidden: true },
-                { id: 'telefono', label: 'Teléfono', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Máx 20 caracteres, sin comas', optional: true, hidden: true },
-                {
-                    id: 'localidad_pago', label: 'Localidad Pago', placeholder: 'QUITO, GUAYAQUIL...',
-                    rule: (value, row) => isCreditoCuenta(row) ? value === '' : /^[^,]{0,20}$/.test(value),
-                    error: 'Solo con CHQ o EFE (máx 20 caracteres, sin comas); vacío con CTA',
-                    exportValue: value => value.toUpperCase(),
-                    hidden: true
-                },
-                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^,]{1,200}$/, error: 'Máx 200 caracteres, sin comas' },
-                { id: 'referencia_adicional', label: 'Ref. Adicional', placeholder: 'Texto o |correo@dominio.com', rule: /^[^,]{0,100}$/, error: 'Máx 100 caracteres, sin comas', optional: true, hidden: true }
-            ],
-            exportRow: (row, index, metadata, columns) => [
-                'PA',
-                padLeft((metadata.cuenta_empresa || '').trim(), 10),
-                String(index + 1),
-                getExportValue(findColumn(columns, 'comprobante'), row),
-                getExportValue(findColumn(columns, 'codigo'), row),
-                'USD',
-                formatTerceroAmount(row.valor),
-                ...['forma_pago', 'codigo_institucion', 'tipo_cuenta', 'numero_cuenta', 'tipo_id', 'numero_id', 'nombre', 'direccion', 'ciudad', 'telefono', 'localidad_pago', 'referencia', 'referencia_adicional']
-                    .map(id => getExportValue(findColumn(columns, id), row))
-            ].join(','),
-            recommendations: {
-                items: [
-                    { label: 'Archivo', html: `Se descarga como ${chip('BENEFICIARIO_AAAAMMDD_NN')}. Sube la secuencia (${chip('NN')}) para el segundo archivo del día: Banca Empresas rechaza dos cargas con el mismo nombre en la misma fecha.` },
-                    { label: 'Cuenta Empresa', html: 'La misma para todo el archivo: es la cuenta que se debita en la orden. Se completa con ceros a la izquierda hasta 10 dígitos al exportar.' },
-                    { label: 'Forma de Pago', html: `${chip('CTA')} acredita en cuenta, ${chip('CHQ')} cheque y ${chip('EFE')} efectivo.` },
-                    { label: 'Cuenta destino', html: `Tipo y Nº de cuenta solo se llenan con ${chip('CTA')}. Con ${chip('CHQ')} o ${chip('EFE')} van vacíos y la institución debe ser ${chip('0017')}.` },
-                    { label: 'Valor', html: `Escribe el monto con decimales (${chip('12645.76')}). Al exportar se convierte a 13 dígitos sin punto.` },
-                    { label: 'Identificación', html: `${chip('C')} cédula (10 dígitos), ${chip('R')} RUC (13 dígitos), ${chip('P')} pasaporte (hasta 13).` },
-                    { label: 'Comas', html: 'Los campos de texto no admiten comas: son el separador del archivo.' }
-                ],
-                tip: 'Puedes copiar desde Excel y pegar directamente desde la columna Comprobante. El código de orientación (PA), la moneda (USD) y el secuencial se generan solos.'
-            }
-        },
-        // Réplica del formato tal como lo publica Banco Guayaquil en el centro de
-        // ayuda (artículo 11032985670804, actualizado 2026-08-09): los 20 campos,
-        // en su orden, con la longitud y la observación de cada uno. A diferencia
-        // de la pestaña de arriba no esconde ninguna columna opcional, así que se
-        // ve el formato completo. Escrita desde el artículo, sin mejoras encima.
-        {
-            id: 'terceros_oficial',
-            label: 'Terceros · Formato oficial',
-            title: 'Pago a Terceros — réplica del formato publicado',
-            description: 'Los 20 campos del formato oficial de Banco Guayaquil, uno por columna y en su orden. La línea del archivo es un volcado directo de la fila.',
-            storageKey: 'bg_gen_terceros_oficial_data',
-            defaultFilename: () => `BENEFICIARIO_${formatDate(new Date())}_01`,
-            columns: [
-                { id: 'codigo_orientacion', label: 'Cód. Orientación', placeholder: 'PA', options: ['PA'], rule: /^PA$/i, error: 'Campo 1 · Alfanumérico/2. PA = Pago', defaultValue: 'PA', exportValue: value => value.toUpperCase(), width: 'w-32' },
-                { id: 'cuenta_empresa', label: 'Cuenta Empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Campo 2 · Numérico/10. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar', exportValue: value => padLeft(value, 10), width: 'w-32' },
-                { id: 'secuencial_pago', label: 'Secuencial', placeholder: '1', rule: /^\d{1,7}$/, error: 'Campo 3 · Numérico/7. Arranca en 1 dentro de la orden', defaultValue: index => String(index + 1), width: 'w-24' },
-                { id: 'comprobante', label: 'Comprobante', placeholder: 'Egreso, planilla...', rule: /^[^,]{0,20}$/, error: 'Campo 4 · Alfanumérico/20, opcional', optional: true },
-                { id: 'codigo', label: 'Código', placeholder: 'Cuenta o ID del proveedor', rule: /^[^,]{1,20}$/, error: 'Campo 5 · Alfanumérico/20. Con CTA, la cuenta del proveedor; en ventanilla, su identificación' },
-                { id: 'moneda', label: 'Moneda', placeholder: 'USD', options: ['USD'], rule: /^USD$/i, error: 'Campo 6 · Alfanumérico/3. USD = Dólares', defaultValue: 'USD', exportValue: value => value.toUpperCase(), width: 'w-24' },
-                { id: 'valor', label: 'Valor', placeholder: '12645.76', rule: /^\d{1,11}([.,]\d{1,2})?$/, error: 'Campo 7 · Numérico/13: 11 enteros y 2 decimales', exportValue: (value, row) => formatTerceroAmount(value), width: 'w-28' },
-                { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA', options: ['CTA', 'CHQ', 'EFE'], rule: /^(CTA|CHQ|EFE)$/i, error: 'Campo 8 · CTA crédito a cuenta, CHQ cheque, EFE efectivo', exportValue: value => value.toUpperCase(), width: 'w-28' },
-                {
-                    id: 'codigo_institucion', label: 'Cód. Institución', placeholder: '0017', options: ['0017'],
-                    rule: (value, row) => isVentanilla(row) ? value === '0017' : /^([a-zA-Z0-9]{4}|[a-zA-Z0-9]{15})$/.test(value),
-                    error: 'Campo 9 · Alfanumérico/4 o /15. Con CHQ o EFE debe ser 0017 (BG)',
-                    exportValue: value => value.toUpperCase(), width: 'w-32'
-                },
-                {
-                    id: 'tipo_cuenta', label: 'Tipo Cuenta', placeholder: 'CTE / AHO', options: ['CTE', 'AHO'],
-                    rule: (value, row) => isCreditoCuenta(row) ? /^(CTE|AHO)$/i.test(value) : value === '',
-                    error: 'Campo 10 · CTE o AHO con CTA. Con CHQ o EFE no debe ser llenado',
-                    exportValue: value => value.toUpperCase(), width: 'w-28'
-                },
-                {
-                    id: 'numero_cuenta', label: 'Nº Cuenta', placeholder: '0001234567',
-                    rule: (value, row) => {
-                        if (!isCreditoCuenta(row)) return value === '';
-                        return isBancoGuayaquil(row) ? /^\d{1,10}$/.test(value) : /^[a-zA-Z0-9]{1,30}$/.test(value);
-                    },
-                    error: 'Campo 11 · Con CTA: BG numérico/10 con ceros a la izquierda, otra institución alfanumérico/30 sin relleno. Con CHQ o EFE no debe ser llenado',
-                    exportValue: (value, row) => formatTerceroAccount(value, row)
-                },
-                { id: 'tipo_id', label: 'Tipo ID', placeholder: 'C / R / P', options: ['C', 'R', 'P'], rule: /^[CRP]$/i, error: 'Campo 12 · C cédula, R RUC, P pasaporte', exportValue: value => value.toUpperCase(), width: 'w-24' },
-                {
-                    id: 'numero_id', label: 'Nº ID', placeholder: '0912378320',
-                    rule: (value, row) => {
-                        const tipo = normalizeId(row.tipo_id);
-                        if (tipo === 'C') return /^\d{10}$/.test(value);
-                        if (tipo === 'R') return /^\d{13}$/.test(value);
-                        if (tipo === 'P') return /^[a-zA-Z0-9]{1,13}$/.test(value);
-                        return false;
-                    },
-                    error: 'Campo 13 · Cédula 10 dígitos, RUC 13 dígitos, pasaporte hasta 13. Elige primero el Tipo ID',
-                    exportValue: value => value.toUpperCase()
-                },
-                { id: 'nombre', label: 'Nombre Beneficiario', placeholder: 'Proveedor S.A.', rule: /^[^,]{1,40}$/, error: 'Campo 14 · Alfanumérico/40' },
-                { id: 'direccion', label: 'Dirección', placeholder: 'Opcional', rule: /^[^,]{0,40}$/, error: 'Campo 15 · Alfanumérico/40, opcional', optional: true },
-                { id: 'ciudad', label: 'Ciudad', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Campo 16 · Alfanumérico/20, opcional', optional: true },
-                { id: 'telefono', label: 'Teléfono', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Campo 17 · Alfanumérico/20, opcional', optional: true },
-                {
-                    id: 'localidad_pago', label: 'Localidad Pago', placeholder: 'QUITO, GUAYAQUIL...',
-                    rule: (value, row) => isCreditoCuenta(row) ? value === '' : /^[^,]{0,20}$/.test(value),
-                    error: 'Campo 18 · Alfanumérico/20. Con CTA va en blanco; con CHQ o EFE, en blanco = cualquier localidad',
-                    exportValue: value => value.toUpperCase()
-                },
-                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^,]{1,200}$/, error: 'Campo 19 · Alfanumérico/200. Es lo que se imprime como nº de factura en la notificación' },
-                { id: 'referencia_adicional', label: 'Ref. Adicional', placeholder: '|proveedor@mail.com', rule: /^[^,]{0,100}$/, error: 'Campo 20 · Alfanumérico/100, opcional. Para notificar por correo: pipe y después la dirección', optional: true }
-            ],
-            // Sin exportRow: las 20 columnas ya están en el orden del formato, así
-            // que la línea es el volcado 1:1 que hace exportTxt() por defecto.
-            recommendations: {
-                items: [
-                    { label: 'Cód. Orientación', html: `Campo 1 · ${chip('Alfanumérico/2')}. Indica el código del servicio: ${chip('PA')} = Pago. Viene puesto en cada fila.` },
-                    { label: 'Cuenta Empresa', html: `Campo 2 · ${chip('Numérico/10')}. La cuenta de la empresa que se usa para el servicio. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar: ${chip('1234567')} sale ${chip('0001234567')}.` },
-                    { label: 'Secuencial', html: `Campo 3 · ${chip('Numérico/7')}. Arranca en 1 dentro de la orden y se numera solo por fila. Podés cambiarlo: los desgloses de rubros solo aplican a pagos en ventanilla.` },
-                    { label: 'Comprobante', html: `Campo 4 · ${chip('Alfanumérico/20')}, opcional. Comprobante de pago, egreso, planilla. No hace falta rellenar con ceros.` },
-                    { label: 'Código', html: `Campo 5 · ${chip('Alfanumérico/20')}. Con ${chip('CTA')}, la cuenta del proveedor; en ventanilla, su identificación. También admite código de beneficiario o de proveedor.` },
-                    { label: 'Moneda', html: `Campo 6 · ${chip('Alfanumérico/3')}. Código de la moneda del movimiento: ${chip('USD')} = Dólares. Viene puesto en cada fila.` },
-                    { label: 'Valor', html: `Campo 7 · ${chip('Numérico/13')}: 11 enteros y 2 decimales. ${chip('12645.76')} se exporta ${chip('0000001264576')}.` },
-                    { label: 'Forma Pago', html: `Campo 8 · ${chip('CTA')} crédito a cuenta, ${chip('CHQ')} cheque, ${chip('EFE')} efectivo.` },
-                    { label: 'Cód. Institución', html: `Campo 9 · ${chip('Alfanumérico/4')} o ${chip('/15')}. Con ${chip('CHQ')} o ${chip('EFE')} debe ser ${chip('0017')} (BG). Con ${chip('CTA')} local son 4 dígitos: ver el Anexo 4 del banco.` },
-                    { label: 'Tipo Cuenta', html: `Campo 10 · ${chip('CTE')} corriente o ${chip('AHO')} ahorros. Con ${chip('CHQ')} o ${chip('EFE')} no debe ser llenado.` },
-                    { label: 'Nº Cuenta', html: `Campo 11 · En BG son 10 dígitos y se completan con ceros a la izquierda; en otra institución va tal cual, hasta 30. Con ${chip('CHQ')} o ${chip('EFE')} no debe ser llenado.` },
-                    { label: 'Tipo ID', html: `Campo 12 · ${chip('C')} cédula, ${chip('R')} RUC, ${chip('P')} pasaporte.` },
-                    { label: 'Nº ID', html: 'Campo 13 · Cédula 10 dígitos, RUC 13 dígitos, pasaporte hasta 13 caracteres.' },
-                    { label: 'Nombre Beneficiario', html: `Campo 14 · ${chip('Alfanumérico/40')}.` },
-                    { label: 'Dirección', html: `Campo 15 · ${chip('Alfanumérico/40')}, opcional.` },
-                    { label: 'Ciudad', html: `Campo 16 · ${chip('Alfanumérico/20')}, opcional.` },
-                    { label: 'Teléfono', html: `Campo 17 · ${chip('Alfanumérico/20')}, opcional.` },
-                    { label: 'Localidad Pago', html: `Campo 18 · Con ${chip('CTA')} va en blanco. Con ${chip('CHQ')} o ${chip('EFE')}: en blanco = cualquier localidad, o ${chip('QUITO')}, ${chip('GUAYAQUIL')}, ${chip('CUENCA')}...` },
-                    { label: 'Referencia', html: `Campo 19 · ${chip('Alfanumérico/200')}: el número de factura. Es lo que se imprime en la notificación al beneficiario.` },
-                    { label: 'Ref. Adicional', html: `Campo 20 · ${chip('Alfanumérico/100')}, opcional. Para avisar por correo, primero el pipe y después la dirección: ${chip('|proveedor@mail.com')}.` }
-                ],
-                tip: 'Los 20 campos del formato son las 20 columnas de la grilla, en su orden: la línea del archivo es la fila tal cual. Los campos 1, 6 y 3 vienen preseteados en cada fila nueva (PA, USD y el secuencial), pero se pueden editar como cualquier otro.',
-                notice: 'El NN del nombre del archivo se edita abajo, en el campo del nombre: no es un campo del registro, es parte del nombre.'
-            }
-        },
-        {
-            id: 'recaudacion_batch',
-            label: 'Recaudación Batch',
-            title: 'Generador Batch de Recaudación',
-            description: 'Genera el archivo TXT de Cobros o Facturación (RECAUDOS17_TC) con registros de 124 caracteres.',
-            storageKey: 'bg_gen_recaudacion_batch_data',
-            metadataKey: 'bg_gen_recaudacion_batch_metadata',
-            filename: metadata => `REM_${formatDate(new Date())}_${(metadata.codigo_empresa || 'EMPRESA').trim().toUpperCase() || 'EMPRESA'}`,
-            exportType: 'fixedBatch',
-            metadata: [
-                { id: 'fecha_ejecucion', label: 'Fecha de ejecución', placeholder: 'Seleccione una fecha', type: 'date', futureOnly: true, rule: /^\d{8}$/, error: 'Seleccione una fecha futura' },
-                { id: 'codigo_empresa', label: 'Código de empresa', placeholder: 'EFA', rule: /^[a-zA-Z0-9]{1,5}$/, error: 'Máx 5 caracteres alfanuméricos' }
-            ],
-            columns: [
-                { id: 'tipo_registro', label: 'Tipo Registro', placeholder: 'Nueva Deuda', options: ['Nueva Deuda', 'Actualizar Deuda'], rule: /^(Nueva Deuda|Actualizar Deuda)$/i, error: 'Nueva Deuda o Actualizar Deuda' },
-                { id: 'codigo_cliente', label: 'Código Cliente', placeholder: '123456789', rule: /^[a-zA-Z0-9]{1,15}$/, error: 'Máx 15 caracteres alfanuméricos' },
-                { id: 'nombre_cliente', label: 'Nombre Cliente', placeholder: 'Usuario Prueba', rule: /^.{1,40}$/, error: 'Máx 40 caracteres' },
-                { id: 'valor_cobrar', label: 'Valor a Cobrar', placeholder: '220.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Ingrese un monto con 2 decimales. Ej: 220.00' },
-                { id: 'valor_minimo', label: 'Valor Mínimo', placeholder: '50.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Vacío o monto con 2 decimales. Ej: 50.00', optional: true, defaultExport: '0000000000' },
-                { id: 'valor_retencion', label: 'Valor Retención', placeholder: '0.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Vacío o monto con 2 decimales. Ej: 0.00', optional: true, defaultExport: '0000000000' },
-                { id: 'referencia', label: 'Referencia', placeholder: 'PRUEBA DE PAGO', rule: /^.{0,15}$/, error: 'Máx 15 caracteres', optional: true },
-                { id: 'periodo', label: 'Periodo', placeholder: 'AAAAMM', rule: /^\d{6}$/, error: 'Debe tener formato AAAAMM' },
-                { id: 'secuencia', label: 'Secuencia', placeholder: 'Unica Deuda', options: ['Unica Deuda', 'Segunda Deuda', 'Tercera Deuda', 'Cuarta Deuda'], rule: /^(Unica Deuda|Segunda Deuda|Tercera Deuda|Cuarta Deuda)$/i, error: 'Seleccione una secuencia válida' }
-            ],
-            recommendations: {
-                items: [
-                    { label: 'Archivo', html: `Salida fija de ${chip('124')} caracteres por línea con cabecera ${chip('01REC')}.` },
-                    { label: 'Empresa', html: 'Código entregado por Banco Guayaquil, hasta 5 caracteres.' },
-                    { label: 'Montos', html: 'Ingrese valores con 2 decimales. Al exportar se convierten a centavos y se completan con ceros a la izquierda.' },
-                    { label: 'Periodo', html: `Formato ${chip('AAAAMM')}. Ejemplo: ${chip('202504')}.` },
-                    { label: 'Filas', html: 'Solo se exportan registros con datos.' }
-                ],
-                tip: 'Puedes copiar desde Excel y pegar directamente desde la columna Tipo Registro.'
-            }
         }
     ]
 };
 
 // State
-let activeGeneratorIndex = parseInt(localStorage.getItem(APP_CONFIG.activeGeneratorKey) || '0');
+// La app sirve un solo generador: `generators` sigue siendo un array porque es
+// el contrato de toda la lógica de render, pero acá no hay pestañas para
+// cambiar de índice. La versión con las cuatro está en la rama `pestanas`.
+const activeGeneratorIndex = 0;
 let gridData = [];
 let currentMetadata = {};
 let currentFilename = '';
@@ -270,7 +53,6 @@ let currentTheme = localStorage.getItem(APP_CONFIG.themeKey) || 'dark';
 let isSidebarVisible = localStorage.getItem(APP_CONFIG.sidebarKey) !== 'false';
 
 // DOM Elements
-const tabsContainer = document.getElementById('tabs-container');
 const generatorTitle = document.getElementById('generator-title');
 const generatorDescription = document.getElementById('generator-description');
 const generatorFields = document.getElementById('generator-fields');
@@ -304,7 +86,6 @@ function init() {
     applyTheme(currentTheme);
     applySidebarState(isSidebarVisible);
     lucide.createIcons();
-    renderTabs();
     loadGenerator();
 }
 
@@ -344,24 +125,6 @@ function loadGenerator() {
     }
 
     updateStats();
-}
-
-function renderTabs() {
-    tabsContainer.innerHTML = APP_CONFIG.generators.map((gen, i) => {
-        const isActive = i === activeGeneratorIndex;
-        const activeClass = 'bg-gradient-to-br from-secondary to-[#ec4899] text-white shadow-[0_4px_15px_-3px_rgba(210,0,110,0.4)]';
-        const inactiveClass = 'bg-white dark:bg-white/5 border border-slate-200 dark:border-border text-slate-500 dark:text-text-muted hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white';
-        return `<button class="px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${isActive ? activeClass : inactiveClass}" onclick="switchGenerator(${i})">${gen.label}</button>`;
-    }).join('');
-}
-
-function switchGenerator(index) {
-    if (index === activeGeneratorIndex) return;
-    activeGeneratorIndex = index;
-    localStorage.setItem(APP_CONFIG.activeGeneratorKey, index);
-    gridData = [];
-    renderTabs();
-    loadGenerator();
 }
 
 function applyTheme(theme) {

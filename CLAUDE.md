@@ -3,6 +3,23 @@
 Notas para trabajar en este repo. Para qué hace la herramienta y el detalle de
 los formatos de archivo, ver [README.md](README.md).
 
+## Ramas
+
+- **`main`** — un solo generador (Pago de Servicios), **sin barra de pestañas**.
+  `activeGeneratorIndex` es `const 0`: nada lo mueve.
+- **`pestanas`** — los cuatro generadores (Pago de Servicios, Pago a Terceros,
+  la réplica del formato oficial de BG y Recaudación Batch) con la navegación
+  por pestañas: `#tabs-container` en el markup, `renderTabs()` y
+  `switchGenerator()` en el script, y `activeGeneratorKey` para recordar cuál
+  quedó abierto.
+
+La diferencia es de config y de esa navegación, no de motor: todo lo que
+describe este archivo vale igual en las dos. Por eso quedan en `main` helpers
+que hoy no llama nadie (`formatTerceroAmount`, `formatTerceroAccount`,
+`isVentanilla`, `findColumn`) — son de los generadores que viven en la otra
+rama, y borrarlos solo complicaría traerlos de vuelta. Los ejemplos de este
+archivo que citan Pago a Terceros o Recaudación Batch describen esa rama.
+
 ## Stack
 
 HTML + CSS + JS vanilla, sin build, sin dependencias locales, sin backend.
