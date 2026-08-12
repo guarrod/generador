@@ -50,10 +50,10 @@ un clon git de este mismo repo.
 
 ## Generadores disponibles
 
-Esta entrega trae **un solo generador**, sin barra de pestañas. Las siguientes
-suman uno cada una y reponen la navegación; ver
-[`docs/estado.md`](docs/estado.md) antes de simplificar la arquitectura
-multi-generador.
+Se eligen con las pestañas de arriba. Cada uno guarda sus datos por separado, así
+que se puede saltar de uno a otro sin perder nada. La entrega siguiente suma
+Recaudación Batch; ver [`docs/estado.md`](docs/estado.md) antes de simplificar la
+arquitectura multi-generador.
 
 ### 1. Pago de Servicios
 
@@ -79,6 +79,59 @@ Al exportar: `Forma Pago` y `Tipo` se pasan a mayúsculas. Hay un campo **Monto
 Máx** oculto (hasta 7 dígitos) que no se muestra en la grilla: vacío se
 completa con `999999999`; si tiene valor se le agregan los centavos (`00`).
 
+### 2. Pago a Terceros (Cash Management)
+
+Genera el archivo de pagos masivos a proveedores: una línea por beneficiario.
+Sigue el formato publicado por Banco Guayaquil, transcrito campo por campo en
+[`docs/formato-pago-terceros.md`](docs/formato-pago-terceros.md) — vale la pena
+tenerlo al lado, porque la página del banco no se puede consultar de forma
+automática.
+
+**Los 20 campos del formato son las 20 columnas de la grilla, en su orden**: la
+línea del archivo es la fila tal cual. No hay columnas ocultas ni campos sueltos
+arriba de la tabla, así que lo que se ve es lo que se exporta.
+
+Tres campos vienen preseteados en cada fila nueva, y se pueden editar igual:
+
+- **Cód. Orientación** en `PA` y **Moneda** en `USD`, los únicos valores que
+  define el formato.
+- **Secuencial**, numerado solo desde 1. Queda editable a propósito: el formato
+  lo vincula al desglose de rubros de los pagos en ventanilla.
+
+| Columna | Regla | Obligatorio |
+| ------- | ----- | ----------- |
+| Cuenta Empresa | Hasta 10 dígitos; se completa con ceros a la izquierda al exportar | Sí |
+| Comprobante | Hasta 20 caracteres, sin comas | No |
+| Código | Hasta 20 caracteres: cuenta del proveedor con `CTA`, identificación en ventanilla | Sí |
+| Valor | Hasta 11 enteros y 2 decimales (`12645.76` → `0000001264576`) | Sí |
+| Forma Pago | `CTA` cuenta, `CHQ` cheque, `EFE` efectivo | Sí |
+| Cód. Institución | 4 o 15 caracteres (`0017` = BG) | Sí |
+| Tipo Cuenta | `CTE` o `AHO` | Solo con `CTA` |
+| Nº Cuenta | BG: hasta 10 dígitos, con ceros a la izquierda. Otros bancos: hasta 30, sin relleno | Solo con `CTA` |
+| Tipo ID | `C` cédula, `R` RUC, `P` pasaporte | Sí |
+| Nº ID | Cédula 10 dígitos, RUC 13, pasaporte hasta 13 | Sí |
+| Nombre Beneficiario | Hasta 40 caracteres | Sí |
+| Dirección · Ciudad · Teléfono | Hasta 40 / 20 / 20 caracteres | No |
+| Localidad Pago | Hasta 20 caracteres; en blanco con `CTA` | No |
+| Referencia | Hasta 200 caracteres: el nº de factura | Sí |
+| Ref. Adicional | Hasta 100 caracteres. Con `\|correo@dominio.com` se notifica al beneficiario | No |
+
+Reglas que dependen de la forma de pago, controladas en vivo:
+
+- Con **`CTA`**: Tipo y Nº de cuenta son obligatorios.
+- Con **`CHQ`** o **`EFE`**: Tipo y Nº de cuenta van vacíos y la institución debe
+  ser `0017`.
+- El largo del Nº de ID cambia según el Tipo de ID, que hay que elegir primero.
+
+El nombre del archivo se propone como `BENEFICIARIO_<AAAAMMDD de hoy>_01` y queda
+editable: subí el `NN` para el segundo archivo del día, porque Banca Empresas
+rechaza dos cargas con el mismo nombre en la misma fecha.
+
+> El archivo separa campos por comas, así que **ningún campo de texto puede
+> contener comas**. La grilla las marca como error. Ojo: el separador es un
+> supuesto heredado, no está en la documentación del banco — ver
+> [`docs/estado.md`](docs/estado.md).
+
 ## Uso
 
 - **Pegar desde Excel**: copiá el rango y pegá directamente en la primera celda.
@@ -103,8 +156,9 @@ index.html        Layout: header, grilla, panel de recomendaciones
 script.js         APP_CONFIG (definición de cada generador) + toda la lógica
 styles.css        Lo que no cubre Tailwind: fondo punteado, date picker, scrollbars
 assets/           logo.png
-tests/            Suites de verificación (node tests/run.js)
+tests/            Suites de verificación (node tests/run.js) y fixtures
 docs/estado.md    Alcance, supuestos abiertos y decisiones conocidas
+docs/formato-*.md Los formatos del banco, transcritos de la fuente oficial
 ARCHITECTURE.md   Cómo está armado y cómo extenderlo
 ```
 

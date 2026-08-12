@@ -7,19 +7,13 @@ hace la herramienta y el detalle de los formatos de archivo, ver
 
 ## Entregas
 
-`main` trae un solo generador (Pago de Servicios) y **no tiene barra de
-pestañas**: `activeGeneratorIndex` es `const 0` y nada lo mueve. Las entregas
-siguientes suman un generador cada una y la 2 repone la navegación
-(`#tabs-container`, `renderTabs()`, `switchGenerator()`, `activeGeneratorKey`, y
-`activeGeneratorIndex` de vuelta a `let`). El detalle está en
+Esta entrega trae dos generadores (Pago de Servicios y Pago a Terceros) y la
+barra de pestañas. La siguiente suma Recaudación Batch; el detalle está en
 [docs/estado.md](docs/estado.md).
 
-Lo que cambia entre entregas es la config y esa navegación, **nunca el motor**:
-todo lo que describe este archivo vale igual en todas. Por eso quedan en `main`
-helpers que hoy no llama nadie (`formatTerceroAmount`, `formatTerceroAccount`,
-`isVentanilla`, `findColumn`): son de los generadores que llegan después.
-Algunos ejemplos de este archivo citan Pago a Terceros o Recaudación Batch
-porque describen capacidades del motor que esos formatos ejercitan.
+Lo que cambia entre entregas es la config, **nunca el motor**: todo lo que
+describe este archivo vale igual en todas. Por eso quedan en el árbol helpers
+que todavía no llama nadie — son del generador que llega después.
 
 ## Stack
 

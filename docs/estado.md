@@ -6,33 +6,26 @@ incluidas las que conviene revisar.
 
 ## Alcance de esta entrega
 
-La app trae **un solo generador, Pago de Servicios**, y no tiene barra de
-pestañas. La arquitectura sí es multi-generador: `APP_CONFIG.generators` en
-[`script.js`](../script.js) es un array y todo el render es genérico sobre él.
-Ver [`ARCHITECTURE.md`](../ARCHITECTURE.md).
+Dos generadores —**Pago de Servicios** y **Pago a Terceros**— y la barra de
+pestañas para saltar entre ellos. Cada uno guarda sus datos por separado en
+`localStorage`.
+
+El formato de Pago a Terceros está transcrito campo por campo en
+[formato-pago-terceros.md](formato-pago-terceros.md), porque la página del banco
+no se puede consultar de forma automática.
 
 ## Lo que viene después
 
-Las entregas siguientes agregan un generador cada una. Conviene saberlo ahora
-porque condiciona qué no hay que simplificar:
-
 | Entrega | Contenido |
 | ------- | --------- |
-| 1 (esta) | Pago de Servicios, sin pestañas |
-| 2 | Pago a Terceros (Cash Management). **Vuelve la barra de pestañas** |
-| 3 | Recaudación Batch (RECAUDOS17_TC), formato de ancho fijo de 124 caracteres |
+| 1 | Pago de Servicios, sin pestañas |
+| 2 (esta) | + Pago a Terceros (Cash Management). Vuelve la barra de pestañas |
+| 3 | + Recaudación Batch (RECAUDOS17_TC), formato de ancho fijo de 124 caracteres |
 
-**No colapsen el array de generadores a un objeto suelto, ni saquen
-`getActiveConfig()`.** Parece código de más para un solo formato, pero es lo que
-hace que la entrega 2 sea agregar un objeto y no reescribir el render. Por la
-misma razón quedan en el árbol algunos helpers sin llamar
-(`formatTerceroAmount`, `formatTerceroAccount`, `isVentanilla`, `findColumn`):
-son de los generadores que llegan después.
-
-La barra de pestañas se saca y se repone con un diff chico y ya conocido:
-`#tabs-container` en el markup, `renderTabs()` y `switchGenerator()` en el
-script, la clave `activeGeneratorKey`, y `activeGeneratorIndex` que vuelve a ser
-`let`.
+**No colapsen el array de generadores ni saquen `getActiveConfig()`.** Es lo que
+hace que la entrega 3 sea agregar un objeto y no reescribir el render. Por la
+misma razón quedan en el árbol algunos helpers que todavía no llama nadie: son
+del generador que llega después.
 
 ## Supuestos abiertos
 
@@ -68,6 +61,14 @@ convierte un error silencioso en uno visible.
 
 Ninguna regla exige que el monto sea mayor a cero. El formato tampoco lo prohíbe,
 pero una línea de pago por cero es casi siempre un error de carga.
+
+### La cuenta de la empresa se carga por fila y nadie compara entre filas
+
+El formato define la cuenta de la empresa por línea (campo 2), así que es una
+columna más de la grilla. La regla verifica que sean hasta 10 dígitos, pero
+**no** que todas las filas del archivo tengan la misma. Un dedazo en una fila del
+medio arma una orden que debita dos cuentas distintas sin que nada lo marque.
+Vale la pena una advertencia cuando una fila se aparta del resto.
 
 ## Decisiones conocidas
 
