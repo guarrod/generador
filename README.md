@@ -37,16 +37,27 @@ en [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 Es un sitio estático: alcanza con servir la carpeta desde cualquier servidor.
 
-Hay un script que publica `main` en un servidor por SSH. La configuración es
-local y no se versiona:
+Hay un script que publica por SSH. La configuración es local y no se versiona:
 
 ```bash
-cp deploy.env.example deploy.env   # completar con el host y el directorio
-./deploy.sh
+cp deploy.env.example deploy.env   # completar con el host y los directorios
+
+./deploy.sh            # main → producción
+./deploy.sh preview    # la rama actual → la URL de vista previa
 ```
 
-Hace `git push` de `main` y después `git pull` en el servidor, que tiene que ser
-un clon git de este mismo repo.
+Los dos modos hacen lo mismo: `git push` de la rama y después `git pull` en el
+servidor, que tiene que ser un clon git de este mismo repo. La diferencia es a
+qué directorio y con qué rama.
+
+**La vista previa** sirve para mostrar una rama sin tocar producción — por
+ejemplo la entrega siguiente, mientras se revisa. Publica **la rama en la que
+estés parado**, y si cambiás de rama la preview la sigue. Se apoya en un segundo
+clon en el servidor, que se crea una sola vez (ver `deploy.env.example`); a
+partir de ahí el script lo mantiene al día.
+
+Los dos avisan si hay cambios sin commitear, porque lo que se publica es el
+commit y no lo que tenés en el editor.
 
 ## Generadores disponibles
 
