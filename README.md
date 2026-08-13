@@ -154,7 +154,7 @@ rechaza dos cargas con el mismo nombre en la misma fecha.
 ```
 index.html        Layout: header, grilla, panel de recomendaciones
 script.js         APP_CONFIG (definición de cada generador) + toda la lógica
-styles.css        Lo que no cubre Tailwind: fondo punteado, date picker, scrollbars
+styles.css        Lo que no cubre Tailwind: fondo punteado, date picker, scroll de la grilla
 assets/           logo.png
 tests/            Suites de verificación (node tests/run.js) y fixtures
 docs/estado.md    Alcance, supuestos abiertos y decisiones conocidas

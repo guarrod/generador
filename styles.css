@@ -46,17 +46,57 @@ body {
     filter: invert(1);
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.overflow-x-auto::-webkit-scrollbar {
-    display: none;
+/* ── Desplazamiento horizontal de la grilla ─────────────────────────────────
+   Los formatos con muchas columnas (Pago a Terceros son 20) no entran en el
+   ancho de la pantalla. Hacen falta dos cosas y ninguna la cubre Tailwind.
+
+   1. Que la tabla DESBORDE en vez de comprimirse. Con `width: 100%` y el layout
+      automático de tablas, el navegador encoge las columnas hasta que entren; y
+      como los inputs son `w-full`, no ponen ningún piso. El resultado son 20
+      columnas ilegibles y nada para desplazar. `min-width: max-content` le da a
+      la tabla su ancho natural y ahí sí el contenedor tiene algo que mover.
+      Con pocas columnas el `w-full` sigue mandando y no cambia nada. */
+#main-grid {
+    min-width: max-content;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
+/*  2. Que la barra SE VEA. Antes estaba oculta a propósito, pero sin barra no
+       hay ninguna señal de que haya más columnas a la derecha: el usuario ve la
+       grilla cortada y no sabe que puede seguir. */
 .overflow-x-auto {
-    -ms-overflow-style: none;
-    /* IE and Edge */
-    scrollbar-width: none;
-    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
+}
+
+.dark .overflow-x-auto {
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+    height: 10px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background-color: rgba(15, 23, 42, 0.25);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.dark .overflow-x-auto::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background-color: var(--secondary);
+}
+
+.dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background-color: var(--secondary);
 }
 
 .cell{
