@@ -208,7 +208,9 @@ en el `notice` (es el caso del Monto Máx de Pago de Servicios).
 
 - Estilos con clases de Tailwind inline en el markup y en los template strings.
   `styles.css` es solo para lo que Tailwind no cubre (fondo punteado, date
-  picker nativo, ocultar scrollbars).
+  picker nativo, y el desplazamiento horizontal de la grilla: el
+  `min-width: max-content` que hace desbordar la tabla en vez de comprimirla, y
+  la barra de scroll con estilo propio en claro y oscuro).
 - Funciones y estado como globales en `script.js`; sin módulos ni bundler. Las
   pestañas usan `onclick` inline, así que las funciones que se llamen desde el
   HTML generado tienen que quedar en el scope global.
