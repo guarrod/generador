@@ -97,12 +97,12 @@ Campos de un generador:
 | `recommendations` | Contenido del panel lateral: `items` + `tip` + `notice`            |
 
 Cada columna: `id`, `label`, `placeholder`, `rule`, `error` (mensaje del
-tooltip), `optional`, `options` (llena un `<datalist>` — **solo para conjuntos
-cerrados**, los que el formato enumera entero: `CTA`/`CHQ`/`EFE`, `CTE`/`AHO`,
-`C`/`R`/`P`. Un campo cuya lista real vive fuera de la app, como el código de
-institución financiera —que es el Anexo 4 del banco—, no lleva `options`:
-sugerir un par de valores lo haría parecer cerrado y el usuario tiene que poder
-cargar cualquiera), `defaultValue`,
+tooltip), `optional`, `options` (**convierte la celda en un `<select>`** — ver
+más abajo; **solo para conjuntos cerrados**, los que el formato enumera entero:
+`CTA`/`CHQ`/`EFE`, `CTE`/`AHO`, `C`/`R`/`P`. Un campo cuya lista real vive fuera
+de la app, como el código de institución financiera —que es el Anexo 4 del
+banco—, no lleva `options`: sugerir un par de valores lo haría parecer cerrado y
+el usuario tiene que poder cargar cualquiera), `defaultValue`,
 `exportValue`, `hidden` y `width` (clase Tailwind, ej. `w-24`, para fijar el
 ancho de una columna angosta). La tabla no es `table-fixed`, así que el resto de las
 columnas sin `width` se sigue repartiendo el espacio sobrante según su
@@ -200,6 +200,30 @@ desde Excel se mapea contra lo visible, que es lo que el usuario tiene delante).
 `addRows` y el export siguen recorriendo `gen.columns` completo. Si agregás un
 camino que indexe celdas del DOM contra columnas, tiene que usar
 `getVisibleColumns()` o los índices se desalinean.
+
+**Una celda es un `<input>`, salvo que la columna declare `options`: ahí es un
+`<select>`** (`createCellInput()` / `createCellSelect()`). El datalist que había
+antes no servía: el navegador filtra sus opciones por lo que la celda ya tiene
+escrito, así que con `CTE` cargado la lista ofrecía solo `CTE` y no había forma
+de llegar a `AHO` sin borrar a mano primero. Tres cosas que el select respeta:
+
+- **Lleva opción vacía (`—`).** En estos formatos el vacío significa algo —con
+  `CHQ` o `EFE` el tipo de cuenta debe ir vacío—, así que tiene que poder
+  elegirse; antes había que borrar la celda con la tecla de retroceso.
+- **Un valor que no está entre las opciones se agrega como una opción más**
+  (`getCellOptions()`). Pasa con lo pegado desde Excel —`cte` en minúscula, que
+  la regla acepta— y con un dato mal cargado. Sin eso el select mostraría un
+  valor distinto del que guarda `gridData`: la celda diría una cosa y el archivo
+  saldría con otra. La validación sigue pintando la celda como siempre.
+- **No recibe el evento `paste`**, porque un `<select>` no lo dispara. El pegado
+  masivo no cambia —empieza en la primera columna, que es un input en los dos
+  generadores— pero un pegado que arranque justo en una columna con `options` no
+  entra. Si alguna vez hace falta, la salida es un combo (input + select
+  superpuesto), no volver al datalist.
+
+Su estilo vive en `styles.css` como `select.cell`, con selector de tipo y no
+dentro de `getBaseInputClass()`: la validación reasigna la clase entera del
+control en cada tecleo y `cell` es lo único que sobrevive a los tres estados.
 
 `isRowEmpty(row, gen)` decide dos cosas a la vez: qué filas van al archivo
 (`getNonEmptyRows`) y cuáles se saltea la validación por estar en blanco. Mide

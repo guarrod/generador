@@ -253,6 +253,22 @@ module.exports = {
         check('pero mantiene la sangría de la columna', lista.innerHTML.includes('sm:w-28'), true);
         app.renderErrorList([]);
 
+        // ── Las columnas con `options` se cargan con un <select> ─────────────
+        // El valor que tiene la celda tiene que estar entre las opciones, o el
+        // select mostraría uno distinto del que guarda el dato: la celda diría
+        // una cosa y el archivo saldría con otra. Por eso lo que no está entre
+        // las declaradas se agrega como una opción más, en vez de perderse.
+        const conOpciones = { id: 'op', label: 'Op', options: ['CTE', 'AHO'], rule: /^(CTE|AHO)$/i, error: 'x' };
+        check('el valor declarado no agrega nada', app.getCellOptions(conOpciones, 'AHO'), ['CTE', 'AHO']);
+        check('la celda vacía tampoco', app.getCellOptions(conOpciones, ''), ['CTE', 'AHO']);
+        // La regla acepta minúsculas, así que `cte` pegado desde Excel es un
+        // valor válido que no está en la lista: tiene que poder mostrarse.
+        check('un valor válido fuera de la lista se agrega', app.getCellOptions(conOpciones, 'cte'), ['CTE', 'AHO', 'cte']);
+        // Y uno inválido también: si no, el select mostraría otra cosa y la
+        // celda roja no se correspondería con lo que el usuario ve.
+        check('uno inválido también se agrega', app.getCellOptions(conOpciones, 'XX'), ['CTE', 'AHO', 'XX']);
+        check('una columna sin options no rompe', app.getCellOptions(col('libre'), 'algo'), []);
+
         // ── padLeft / padRight: no son simétricos ────────────────────────────
         check('padLeft rellena con ceros a la izquierda', app.padLeft('123', 6), '000123');
         check('padRight rellena con espacios a la derecha', app.padRight('abc', 6), 'abc   ');

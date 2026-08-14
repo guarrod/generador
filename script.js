@@ -589,6 +589,47 @@ function addRows(count) {
     saveToStorage();
 }
 
+function createCellInput(col, value) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = col.placeholder;
+    input.value = value;
+    return input;
+}
+
+// Las columnas de conjunto cerrado se cargan con un <select>, no con un input y
+// un <datalist>: el datalist filtra las opciones por lo que la celda ya tiene
+// escrito, así que con `CTE` cargado la lista ofrecía solo `CTE` y no había forma
+// de ver `AHO` sin borrar a mano primero. El select las muestra siempre todas.
+//
+// Dos cosas que tiene que respetar:
+//
+// - **La opción vacía.** En este formato el vacío significa algo —con CHQ o EFE
+//   el tipo de cuenta debe ir vacío—, así que tiene que poder elegirse. Antes
+//   había que borrar la celda con la tecla de retroceso.
+// - **Un valor que no está entre las opciones se agrega como una opción más.**
+//   Pasa con lo pegado desde Excel (`cte` en minúscula, que la regla acepta) y
+//   con un dato mal cargado. Sin esto el select mostraría un valor distinto del
+//   que tiene el dato: la celda diría una cosa y el archivo saldría con otra.
+function getCellOptions(col, value) {
+    if (!col.options) return [];
+    return value === '' || col.options.includes(value) ? col.options : [...col.options, value];
+}
+
+function createCellSelect(col, value) {
+    const select = document.createElement('select');
+
+    [['', '—'], ...getCellOptions(col, value).map(opcion => [opcion, opcion])].forEach(([valor, texto]) => {
+        const option = document.createElement('option');
+        option.value = valor;
+        option.textContent = texto;
+        select.appendChild(option);
+    });
+
+    select.value = value;
+    return select;
+}
+
 function renderGrid() {
     const gen = getActiveConfig();
     if (!gen.columns) {
@@ -606,30 +647,17 @@ function renderGrid() {
             const td = document.createElement('td');
             td.className = 'border-b border-slate-200 dark:border-border p-0';
 
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.placeholder = col.placeholder;
-            input.value = rowData[col.id];
-            input.dataset.colId = col.id;
-            input.className = getBaseInputClass();
+            const control = col.options ? createCellSelect(col, rowData[col.id]) : createCellInput(col, rowData[col.id]);
+            control.dataset.colId = col.id;
+            control.className = getBaseInputClass();
 
-            if (col.options) {
-                const listId = `${gen.id}-${rowIndex}-${col.id}-options`;
-                const datalist = document.createElement('datalist');
-                datalist.id = listId;
-                col.options.forEach(optionValue => {
-                    const option = document.createElement('option');
-                    option.value = optionValue;
-                    datalist.appendChild(option);
-                });
-                input.setAttribute('list', listId);
-                td.appendChild(datalist);
-            }
+            // Un <select> dispara `input` igual que un campo de texto, así que
+            // los dos controles se escuchan igual. Pegar, en cambio, es solo del
+            // input: un <select> no recibe el evento.
+            control.addEventListener('input', (e) => updateCell(rowIndex, col.id, e.target.value));
+            if (!col.options) control.addEventListener('paste', handlePaste);
 
-            input.addEventListener('input', (e) => updateCell(rowIndex, col.id, e.target.value));
-            input.addEventListener('paste', handlePaste);
-
-            td.appendChild(input);
+            td.appendChild(control);
             tr.appendChild(td);
         });
 
@@ -841,7 +869,8 @@ function validateGrid() {
         let rowValid = true;
 
         getVisibleColumns(gen).forEach((col, colIndex) => {
-            const input = tr.children[colIndex].querySelector('input');
+            // Las columnas con `options` son un <select>; el resto, un input.
+            const input = tr.children[colIndex].querySelector('input, select');
             const value = row[col.id].trim();
             const isValid = isCellValid(col, value, row);
 

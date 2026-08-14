@@ -169,7 +169,10 @@ rechaza dos cargas con el mismo nombre en la misma fecha.
 ## Uso
 
 - **Pegar desde Excel**: copiá el rango y pegá directamente en la primera celda.
-  Reconoce columnas separadas por tabulaciones y crea las filas que falten.
+  Reconoce columnas separadas por tabulaciones y crea las filas que falten. Las
+  columnas de opción fija (Forma Pago, Tipo Cuenta, Tipo ID) son desplegables, y
+  un desplegable no recibe el pegado: si querés pegar solo esa columna suelta,
+  empezá el pegado en una columna de texto.
 - **Validación en vivo**: las celdas con un valor que no cumple la regla se
   marcan en rojo; las que solo están **pendientes** (obligatorias y todavía
   vacías) llevan un borde punteado, para que empezar a llenar una fila no la
