@@ -216,10 +216,23 @@ module.exports = {
             (t.linea(gen, BASE, 0, META).match(/\t/g) || []).length, 19);
         check('y ninguna coma de separador', t.linea(gen, BASE, 0, META).includes(','), false);
 
-        // ── Nombre del archivo: BENEFICIARIO_AAAAMMDD_NN ────────────────────
+        // ── Nombre del archivo: PAGOS_MULTICASH_AAAAMMDD_## ─────────────────
+        // OJO: el artículo del banco documenta otro nombre
+        // (`BENEFICIARIO_AAAAMMDD_NN.TXT`). Este lo confirmó el equipo, igual
+        // que el separador — ver docs/estado.md.
         const hoy = t.app.formatDate(new Date());
-        check('propone el nombre con la fecha de hoy y NN 01', t.app.getDefaultFilename(gen), `BENEFICIARIO_${hoy}_01`);
-        check('el campo del nombre queda editable, para cambiar el NN', gen.filename, undefined);
+        check('el nombre lo deriva el generador, no se propone', typeof gen.filename, 'function');
+        check('y por eso el campo no se muestra ni se guarda',
+            [gen.defaultFilename, gen.filenameKey], [undefined, undefined]);
+        check('PAGOS_MULTICASH con la fecha de hoy y 01', gen.filename({}, gen), `PAGOS_MULTICASH_${hoy}_01`);
+        // El ## sube con cada archivo bajado en el día: Banca Empresas rechaza
+        // dos cargas con el mismo nombre en la misma fecha, y el campo está
+        // oculto, así que el contador lo lleva la app.
+        t.almacen[gen.secuenciaKey] = `${hoy}:2`;
+        check('el segundo archivo del día sale _02', gen.filename({}, gen), `PAGOS_MULTICASH_${hoy}_02`);
+        t.almacen[gen.secuenciaKey] = '20200101:9';
+        check('el de mañana vuelve a _01', gen.filename({}, gen), `PAGOS_MULTICASH_${hoy}_01`);
+        delete t.almacen[gen.secuenciaKey];
 
         // ── Golden file: 12 registros pegados desde Excel ───────────────────
         // Reproduce el mapeo de handlePaste() (contra las columnas visibles) y

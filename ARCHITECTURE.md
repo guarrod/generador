@@ -87,9 +87,9 @@ Campos de un generador:
 | ----------------- | ----------------------------------------------------------------- |
 | `id`, `label`     | Identificador y texto de la pestaña                                |
 | `title`, `description` | Encabezado del panel                                          |
-| `storageKey`, `metadataKey`, `filenameKey` | Claves de `localStorage`, prefijadas `bg_gen_<id>_` |
+| `storageKey`, `metadataKey`, `filenameKey`, `secuenciaKey` | Claves de `localStorage`, prefijadas `bg_gen_<id>_` |
 | `defaultFilename` | Nombre inicial del archivo, `string` o `() => string` (vía `getDefaultFilename()`) para proponer uno que dependa del día. El campo sigue editable |
-| `filename`        | `(metadata) => string` para derivar el nombre. Deshabilita el campo |
+| `filename`        | `(metadata, gen) => string` para derivar el nombre. **Esconde el campo** (ver abajo) |
 | `exportType`      | Ausente → campos separados (ver `exportSeparator` / `exportRow`). `'fixedBatch'` → ancho fijo |
 | `exportRow`       | `(row, index, metadata, columns) => string` cuando la línea no es un volcado 1:1 de las columnas |
 | `metadata`        | Campos generales sobre la grilla (opcional)                        |
@@ -155,6 +155,26 @@ Cinco puntos de extensión declarativos, todos opcionales y retrocompatibles:
   Un valor escrito por el usuario nunca se pisa, pero si vacía la celda vuelve
   a tomar el default en la próxima carga — misma semántica que
   `applyMetadataDefaults()` para la metadata.
+- **`filename(metadata, gen)`** deriva el nombre del archivo en vez de
+  proponerlo. La diferencia con `defaultFilename` no es cosmética: un nombre
+  propuesto se edita y se guarda en `filenameKey`; uno derivado **esconde el
+  campo entero** (`loadGenerator()` le pone `hidden` al contenedor). Un campo
+  deshabilitado ocupa lugar en la barra para no dejar hacer nada.
+
+  Es lo que usa Pago a Terceros: `PAGOS_MULTICASH_<AAAAMMDD de hoy>_<##>`.
+
+  **El `##` lo lleva la app**, porque ya no hay campo donde subirlo a mano y
+  Banca Empresas rechaza dos cargas con el mismo nombre en la misma fecha.
+  `getFileSequence(gen)` da el número del próximo archivo y `bumpFileSequence()`
+  lo sube después de generarlo, sobre `secuenciaKey`. Tres decisiones ahí:
+  - Se guarda **la fecha junto al número** (`AAAAMMDD:3`), para volver a 1 solo
+    cuando cambia el día en vez de arrastrar una cuenta que crece para siempre.
+  - Va en `localStorage` y no en memoria: tiene que sobrevivir a recargar.
+  - **`resetGrid()` no lo borra.** Cuenta archivos que ya salieron, y volver a
+    `01` después de un reset armaría el nombre repetido que el banco rechaza.
+
+  El relleno usa `padStart`, **no `padLeft`**: padLeft trunca con `slice`, así
+  que el archivo 100 del día saldría `_10` y chocaría con el del décimo.
 - **`hidden`** saca la columna de la grilla sin sacarla del archivo: se sigue
   inicializando en cada fila y se sigue exportando en su posición, con su
   `defaultValue` o vacía. Sirve para no cargar la pantalla con campos que el

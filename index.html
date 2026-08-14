@@ -111,7 +111,9 @@
                                 <i data-lucide="plus"></i> Añadir Fila
                             </button>
                             <div class="h-6 w-px bg-slate-200 dark:bg-border"></div>
-                            <div
+                            <!-- Se esconde entero cuando el generador deriva el
+                                 nombre del archivo: ver loadGenerator(). -->
+                            <div id="filename-field"
                                 class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-border rounded-lg text-slate-500 dark:text-text-muted h-[46px]">
                                 <i data-lucide="file-text" class="w-4 h-4"></i>
                                 <input type="text" id="input-filename" placeholder="Nombre..." value="carga_masiva"

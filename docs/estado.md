@@ -104,6 +104,19 @@ aparezca.
   - **La localidad de pago viaja siempre en blanco**, que para el banco es
     "cualquier localidad". Si hace falta dirigir un pago en ventanilla a una
     ciudad, vuelve a ser una columna.
+- **El archivo de Pago a Terceros se llama `PAGOS_MULTICASH_AAAAMMDD_##.txt`.**
+  El artículo del banco documenta otro nombre —`BENEFICIARIO_AAAAMMDD_NN.TXT`—,
+  así que es el segundo punto donde lo que el banco pide en la práctica no
+  coincide con lo que dice el artículo: lo confirmó el equipo, como el
+  separador. El campo del nombre ya no se muestra, porque no hay nada que
+  editar.
+  - **El `##` lo lleva la app**: sube uno por cada archivo bajado en el día y
+    vuelve a `01` al día siguiente. Antes ese número se subía a mano en el campo
+    del nombre, y olvidarse costaba una carga rechazada — Banca Empresas no
+    acepta dos archivos con el mismo nombre en la misma fecha.
+  - El contador **sobrevive al botón Resetear**, a propósito: cuenta archivos que
+    ya salieron, y volver a `01` después de un reset armaría justo el nombre
+    repetido que el banco rechaza.
 - **Pago a Terceros separa los campos con una tabulación.** El artículo del banco
   no dice cuál es el separador —no menciona ninguno, no trae línea de ejemplo y
   no tiene adjuntos—, así que no sale de ahí: lo confirmó el equipo. Antes el

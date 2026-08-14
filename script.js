@@ -64,7 +64,15 @@ const APP_CONFIG = {
             description: 'Cargá lo que cambia en cada beneficiario. Los campos que el formato fija o deriva los completa el generador al exportar.',
             storageKey: 'bg_gen_pago_terceros_data',
             metadataKey: 'bg_gen_pago_terceros_metadata',
-            defaultFilename: () => `BENEFICIARIO_${formatDate(new Date())}_01`,
+            secuenciaKey: 'bg_gen_pago_terceros_secuencia',
+            // El nombre lo deriva el generador, así que el campo de abajo no se
+            // muestra: la fecha es la del día y el ## lo lleva la app, que sube
+            // uno por cada archivo bajado hoy (ver getFileSequence).
+            //
+            // OJO: el artículo del banco documenta otro nombre,
+            // `BENEFICIARIO_AAAAMMDD_NN.TXT`. Este es el que confirmó el equipo
+            // — ver docs/estado.md, como con el separador.
+            filename: (metadata, gen) => `PAGOS_MULTICASH_${formatDate(new Date())}_${formatFileSequence(getFileSequence(gen))}`,
             metadata: [
                 { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Campo 2 · Numérico/10. La cuenta que se debita, la misma para todo el archivo. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar' }
             ],
@@ -167,7 +175,7 @@ const APP_CONFIG = {
                     { label: 'Referencia', html: `Campo 19 · ${chip('Alfanumérico/200')}: el número de factura. Es lo que se imprime en la notificación al beneficiario.` }
                 ],
                 tip: 'La grilla pide 9 de los 20 campos del formato. Los otros los completa el generador al exportar: PA y USD, la cuenta de la empresa, el secuencial (7 dígitos desde 0000001), el código —que copia la cuenta del proveedor con CTA y su identificación en ventanilla— y los opcionales, que viajan vacíos: comprobante, dirección, ciudad, teléfono, localidad de pago y referencia adicional.',
-                notice: 'El archivo no lleva referencia adicional, que es el campo con el que el banco avisa por correo al beneficiario: con este archivo esos correos no salen. La localidad de pago también viaja en blanco, que para el banco significa "cualquier localidad". El NN del nombre del archivo se edita abajo, en el campo del nombre: no es un campo del registro, es parte del nombre.'
+                notice: 'El archivo no lleva referencia adicional, que es el campo con el que el banco avisa por correo al beneficiario: con este archivo esos correos no salen. La localidad de pago también viaja en blanco, que para el banco significa "cualquier localidad". El nombre del archivo lo pone el generador: PAGOS_MULTICASH, la fecha de hoy y un número que sube con cada archivo que bajes en el día.'
             }
         }
     ]
@@ -194,6 +202,7 @@ const generatorFields = document.getElementById('generator-fields');
 const gridHeader = document.getElementById('grid-header');
 const gridBody = document.getElementById('grid-body');
 const inputFilename = document.getElementById('input-filename');
+const filenameField = document.getElementById('filename-field');
 const btnAddRow = document.getElementById('btn-add-row');
 const btnReset = document.getElementById('btn-reset');
 const btnDownload = document.getElementById('btn-download');
@@ -274,10 +283,12 @@ function loadGenerator() {
         footerActions.classList.remove('hidden');
         const savedFilename = gen.filenameKey ? localStorage.getItem(gen.filenameKey) : null;
         const autoFilename = hasAutoFilename(gen);
-        currentFilename = autoFilename ? gen.filename(currentMetadata) : (savedFilename || getDefaultFilename(gen));
+        currentFilename = autoFilename ? gen.filename(currentMetadata, gen) : (savedFilename || getDefaultFilename(gen));
         inputFilename.value = currentFilename;
         inputFilename.disabled = autoFilename;
-        inputFilename.classList.toggle('opacity-60', autoFilename);
+        // Un nombre derivado no se edita, así que el campo directamente no se
+        // muestra: un campo deshabilitado ocupa lugar para no dejar hacer nada.
+        filenameField.classList.toggle('hidden', autoFilename);
 
         renderHeader();
         if (gridData.length === 0) {
@@ -1017,7 +1028,37 @@ function getDefaultFilename(gen = getActiveConfig()) {
 
 function resolveFilename() {
     const gen = getActiveConfig();
-    return hasAutoFilename(gen) ? gen.filename(currentMetadata) : (currentFilename || getDefaultFilename(gen));
+    return hasAutoFilename(gen) ? gen.filename(currentMetadata, gen) : (currentFilename || getDefaultFilename(gen));
+}
+
+// El número que le toca al próximo archivo del día. Banca Empresas rechaza dos
+// cargas con el mismo nombre en la misma fecha, y como el campo del nombre está
+// oculto cuando el generador lo deriva, el contador lo lleva la app.
+//
+// Se guarda la fecha junto al número —`AAAAMMDD:3`— para poder volver a 1 solo
+// cuando cambia el día, en vez de arrastrar una cuenta que crece para siempre.
+// Cualquier cosa rara guardada ahí vale 1: es un contador de conveniencia y
+// empezar de nuevo es más seguro que exportar un nombre imposible.
+function getFileSequence(gen = getActiveConfig()) {
+    if (!gen.secuenciaKey) return 1;
+    const [fecha, numero] = String(localStorage.getItem(gen.secuenciaKey) || '').split(':');
+    if (fecha !== formatDate(new Date())) return 1;
+    const secuencia = parseInt(numero, 10);
+    return Number.isInteger(secuencia) && secuencia > 0 ? secuencia : 1;
+}
+
+// Se llama después de generar el archivo, no antes: el nombre que se descarga
+// tiene que ser el que estaba a la vista mientras se armaba.
+function bumpFileSequence(gen = getActiveConfig()) {
+    if (!gen.secuenciaKey) return;
+    localStorage.setItem(gen.secuenciaKey, `${formatDate(new Date())}:${getFileSequence(gen) + 1}`);
+}
+
+// `padStart` y no `padLeft`: padLeft trunca con `slice`, así que el archivo 100
+// del día saldría como `_10` y chocaría con el nombre del décimo. Un nombre de
+// tres dígitos es más largo de lo previsto; uno repetido lo rechaza el banco.
+function formatFileSequence(numero) {
+    return String(numero).padStart(2, '0');
 }
 
 function normalizeOption(value) {
@@ -1225,15 +1266,23 @@ function exportTxt() {
 
     if (gen.exportType === 'fixedBatch') {
         exportFixedBatchTxt();
-        return;
+    } else {
+        const validRows = getNonEmptyRows();
+        const lines = validRows.map((row, index) => gen.exportRow
+            ? gen.exportRow(row, index, currentMetadata, gen.columns)
+            : gen.columns.map(col => getExportValue(col, row)).join(gen.exportSeparator || ','));
+
+        downloadText(lines.join('\n'), `${resolveFilename()}.txt`);
     }
 
-    const validRows = getNonEmptyRows();
-    const lines = validRows.map((row, index) => gen.exportRow
-        ? gen.exportRow(row, index, currentMetadata, gen.columns)
-        : gen.columns.map(col => getExportValue(col, row)).join(gen.exportSeparator || ','));
-
-    downloadText(lines.join('\n'), `${resolveFilename()}.txt`);
+    // El archivo del día ya salió con este número: el próximo lleva el
+    // siguiente. Va después de generarlo para que el nombre descargado sea el
+    // que estaba a la vista mientras se armaba.
+    bumpFileSequence(gen);
+    if (hasAutoFilename(gen)) {
+        currentFilename = resolveFilename();
+        inputFilename.value = currentFilename;
+    }
 }
 
 function resetGrid() {
@@ -1241,6 +1290,9 @@ function resetGrid() {
     if (!confirm('¿Estás seguro de que quieres borrar todos los datos?')) return;
 
     intentoDescarga = false;
+    // El contador del nombre NO se borra: cuenta los archivos que ya salieron
+    // hoy, y volver a 01 después de un reset armaría un nombre repetido, que es
+    // justo lo que el banco rechaza.
     gridData = [];
     if (gen.storageKey) localStorage.removeItem(gen.storageKey);
     if (gen.metadataKey) localStorage.removeItem(gen.metadataKey);
@@ -1248,7 +1300,7 @@ function resetGrid() {
     applyMetadataDefaults();
 
     if (gen.columns) {
-        currentFilename = hasAutoFilename(gen) ? gen.filename(currentMetadata) : gen.defaultFilename;
+        currentFilename = hasAutoFilename(gen) ? gen.filename(currentMetadata, gen) : gen.defaultFilename;
         if (gen.filenameKey) localStorage.removeItem(gen.filenameKey);
         inputFilename.value = currentFilename;
         renderMetadataFields();

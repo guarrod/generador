@@ -156,9 +156,11 @@ Reglas que dependen de la forma de pago, controladas en vivo:
   ser `0017`.
 - El largo del Nº de ID cambia según el Tipo de ID, que hay que elegir primero.
 
-El nombre del archivo se propone como `BENEFICIARIO_<AAAAMMDD de hoy>_01` y queda
-editable: subí el `NN` para el segundo archivo del día, porque Banca Empresas
-rechaza dos cargas con el mismo nombre en la misma fecha.
+El nombre del archivo lo pone el generador y no se edita —por eso no hay campo
+de nombre en esta pestaña—: `PAGOS_MULTICASH_<AAAAMMDD de hoy>_<##>`, donde el
+`##` arranca en `01` y **sube con cada archivo que bajes en el día**. Banca
+Empresas rechaza dos cargas con el mismo nombre en la misma fecha, así que el
+contador lo lleva la app: al día siguiente vuelve a `01`.
 
 > El archivo separa los campos con **tabulaciones**, el mismo carácter con el que
 > Excel copia una fila. Así que la coma es un carácter válido —`Proveedor, S.A.`

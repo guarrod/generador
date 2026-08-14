@@ -21,6 +21,10 @@ citan el número de campo para poder volver acá.
   - `AAAAMMDD` — la fecha del día.
   - `NN` — número de secuencia, para cuando se envía más de un archivo por día.
   - Ejemplo: `BENEFICIARIO_20220204_01.TXT`
+  - **El generador NO usa este nombre.** Baja
+    `PAGOS_MULTICASH_AAAAMMDD_##.txt`, confirmado por el equipo — igual que el
+    separador, es un punto donde lo que pide el banco en la práctica no coincide
+    con lo que dice este artículo. Ver [estado.md](estado.md).
 - **Una línea por beneficiario**, con los 20 campos en el orden de la tabla.
 
 > **El artículo no dice cuál es el separador de campos.** No menciona ninguno, no

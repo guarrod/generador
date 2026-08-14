@@ -292,6 +292,41 @@ module.exports = {
         check('filename función deshabilita el campo', app.hasAutoFilename({ filename: () => 'x' }), true);
         check('defaultFilename no lo deshabilita', app.hasAutoFilename({ defaultFilename: () => 'x' }), false);
 
+        // ── El ## del nombre: un archivo por número, por día ─────────────────
+        // Banca Empresas rechaza dos cargas con el mismo nombre en la misma
+        // fecha. Cuando el generador deriva el nombre, el campo no se muestra,
+        // así que el contador lo lleva la app y tiene que sobrevivir a recargar
+        // la página — de ahí que viva en localStorage y no en memoria.
+        const CON_SECUENCIA = { id: '_sec', secuenciaKey: '_sec_key' };
+        const hoyCompacto = app.formatDate(new Date());
+        check('sin nada guardado, el primero del día es 1', app.getFileSequence(CON_SECUENCIA), 1);
+        t.almacen._sec_key = `${hoyCompacto}:3`;
+        check('sigue el número guardado para hoy', app.getFileSequence(CON_SECUENCIA), 3);
+        // Se guarda la fecha junto al número para poder volver a empezar solo
+        // cuando cambia el día, sin arrastrar una cuenta que crece para siempre.
+        t.almacen._sec_key = '20200101:7';
+        check('el contador de otro día no cuenta', app.getFileSequence(CON_SECUENCIA), 1);
+        t.almacen._sec_key = `${hoyCompacto}:no-es-un-numero`;
+        check('un valor roto vale 1, no rompe la descarga', app.getFileSequence(CON_SECUENCIA), 1);
+        delete t.almacen._sec_key;
+
+        app.bumpFileSequence(CON_SECUENCIA);
+        check('bajar un archivo guarda el siguiente', t.almacen._sec_key, `${hoyCompacto}:2`);
+        check('y el próximo nombre lo usa', app.getFileSequence(CON_SECUENCIA), 2);
+        app.bumpFileSequence(CON_SECUENCIA);
+        check('y sigue subiendo', app.getFileSequence(CON_SECUENCIA), 3);
+        delete t.almacen._sec_key;
+        check('un generador sin secuenciaKey siempre es 1', app.getFileSequence({ id: 'x' }), 1);
+        app.bumpFileSequence({ id: 'x' });
+        check('y no guarda nada', Object.keys(t.almacen).filter(k => k.includes('sec')), []);
+
+        // Dos dígitos, pero sin truncar: con padLeft el archivo 100 del día
+        // saldría `_10` y chocaría con el nombre del décimo. Un nombre más largo
+        // de lo previsto es mejor que uno repetido, que el banco rechaza.
+        check('el ## lleva cero adelante', app.formatFileSequence(1), '01');
+        check('dos dígitos van tal cual', app.formatFileSequence(12), '12');
+        check('más de 99 no se trunca', app.formatFileSequence(100), '100');
+
         // ── Invariante de `hidden` ───────────────────────────────────────────
         // Una columna oculta no se valida —nadie puede corregir un error que no
         // ve, y la descarga no se bloquearía nunca por ella— y el usuario no
@@ -326,7 +361,7 @@ module.exports = {
 
         // ── Los generadores instalados no comparten estado ───────────────────
         const generadores = app.APP_CONFIG.generators;
-        const claves = generadores.flatMap(g => [g.storageKey, g.metadataKey, g.filenameKey].filter(Boolean));
+        const claves = generadores.flatMap(g => [g.storageKey, g.metadataKey, g.filenameKey, g.secuenciaKey].filter(Boolean));
         check('cada generador guarda en su propia clave', claves.length, new Set(claves).size);
         check('los ids son únicos', generadores.length, new Set(generadores.map(g => g.id)).size);
         check('todas las claves llevan prefijo propio', claves.every(k => k.startsWith('bg_gen_')), true);
