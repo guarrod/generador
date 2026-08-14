@@ -143,6 +143,55 @@ module.exports = {
         ].forEach(([nombre, id, valor, fila, esperado]) =>
             check(nombre, t.app.isCellValid(col(id), valor, fila), esperado));
 
+        const linea = fila => t.linea(gen, { ...BASE, ...fila }, 0, META).split(',');
+        const vale = (id, valor, fila) => t.app.isCellValid(col(id), valor, { ...BASE, ...fila });
+
+        // ── Mientras Forma de Pago siga vacía, no se juzga lo que depende ───
+        // Cargar la cuenta antes de elegir cómo se paga es lo normal si venís
+        // llenando la fila de izquierda a derecha. Con la celda sin elegir la
+        // regla caía en la rama de ventanilla y marcaba en rojo una cuenta
+        // correcta, con el mensaje de CHQ/EFE — un error que el usuario no
+        // cometió y que no se arregla tocando esa celda.
+        check('la cuenta no se marca antes de elegir Forma de Pago',
+            t.app.isCellValid(col('numero_cuenta'), '21512151', {}), true);
+        check('ni el tipo de cuenta', t.app.isCellValid(col('tipo_cuenta'), 'CTE', {}), true);
+        // Y no se escapa nada: la propia Forma de Pago sigue bloqueando.
+        check('pero Forma de Pago sin elegir no vale', t.app.isCellValid(col('forma_pago'), '', {}), false);
+        // Al elegir, las dos vuelven a juzgarse contra la rama que toca.
+        check('elegida CTA, la cuenta se valida', vale('numero_cuenta', '21512151', { forma_pago: 'CTA', codigo_institucion: '0017' }), true);
+        check('elegida CHQ, la cuenta tiene que ir vacía', vale('numero_cuenta', '21512151', { forma_pago: 'CHQ' }), false);
+        check('elegida CTA, el tipo de cuenta se exige', vale('tipo_cuenta', '', { forma_pago: 'CTA' }), false);
+
+        // ── Los ceros a la izquierda los pone el generador ──────────────────
+        // Excel se los come a todo lo que le parezca un número. Pedirle al
+        // usuario que los reponga a mano es pedirle que arregle una planilla
+        // entera a mano, así que las reglas aceptan el valor sin ceros y el
+        // relleno pasa al exportar. Lo que NO cambia es qué es plausible: un
+        // valor demasiado corto se sigue marcando en rojo, porque rellenarlo
+        // mandaría al archivo una identificación plausible y equivocada.
+        check('cédula sin el cero de la provincia vale', vale('numero_id', '912378320', { tipo_id: 'C' }), true);
+        check('y sale con el cero repuesto', linea({ tipo_id: 'C', numero_id: '912378320' })[12], '0912378320');
+        check('cédula de 8 dígitos sigue en rojo', vale('numero_id', '91237832', { tipo_id: 'C' }), false);
+        check('RUC sin el cero vale', vale('numero_id', '912378320001', { tipo_id: 'R' }), true);
+        check('y sale con el cero repuesto', linea({ tipo_id: 'R', numero_id: '912378320001' })[12], '0912378320001');
+        check('RUC de 11 dígitos sigue en rojo', vale('numero_id', '91237832000', { tipo_id: 'R' }), false);
+        // El pasaporte no tiene largo fijo: no hay ningún cero que reponer.
+        check('el pasaporte va tal cual', linea({ tipo_id: 'P', numero_id: 'px39582' })[12], 'PX39582');
+
+        check('el código de institución sin ceros vale', vale('codigo_institucion', '17', { forma_pago: 'CTA' }), true);
+        check('y sale relleno a 4', linea({ codigo_institucion: '17' })[8], '0017');
+        // El relleno se compara, no solo se exporta: escribir 17 tiene que
+        // seguir siendo BG, o la cuenta del campo 11 se validaría contra la
+        // regla de otra institución y saldría sin sus ceros.
+        check('escribir 17 sigue siendo Banco Guayaquil', linea({ codigo_institucion: '17' })[10], '0001234567');
+        check('y el campo 5 lo copia con el mismo relleno', linea({ codigo_institucion: '17' })[4], '0001234567');
+        check('en ventanilla 17 también es 0017',
+            vale('codigo_institucion', '17', { forma_pago: 'CHQ', tipo_cuenta: '', numero_cuenta: '' }), true);
+        // Solo se rellena lo que es todo dígitos: un código alfanumérico de 4 o
+        // el de 15 caracteres viajan como están.
+        check('el código de 15 caracteres no se toca', linea({ codigo_institucion: '012345678901234' })[8], '012345678901234');
+        check('un código alfanumérico no se rellena', vale('codigo_institucion', 'AB1', { forma_pago: 'CTA' }), false);
+
         // "Alfanumérico" en el artículo significa texto, no [A-Za-z0-9]: el campo
         // 14 son razones sociales y el 19 lleva guiones.
         check('nombre con punto y espacios', t.app.isCellValid(col('nombre'), 'Proveedor S.A.', {}), true);

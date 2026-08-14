@@ -97,7 +97,12 @@ Campos de un generador:
 | `recommendations` | Contenido del panel lateral: `items` + `tip` + `notice`            |
 
 Cada columna: `id`, `label`, `placeholder`, `rule`, `error` (mensaje del
-tooltip), `optional`, `options` (llena un `<datalist>`), `defaultValue`,
+tooltip), `optional`, `options` (llena un `<datalist>` — **solo para conjuntos
+cerrados**, los que el formato enumera entero: `CTA`/`CHQ`/`EFE`, `CTE`/`AHO`,
+`C`/`R`/`P`. Un campo cuya lista real vive fuera de la app, como el código de
+institución financiera —que es el Anexo 4 del banco—, no lleva `options`:
+sugerir un par de valores lo haría parecer cerrado y el usuario tiene que poder
+cargar cualquiera), `defaultValue`,
 `exportValue`, `hidden` y `width` (clase Tailwind, ej. `w-24`, para fijar el
 ancho de una columna angosta). La tabla no es `table-fixed`, así que el resto de las
 columnas sin `width` se sigue repartiendo el espacio sobrante según su
@@ -212,6 +217,21 @@ ambos es puramente visual: `isCellValid()` sigue devolviendo un booleano y la
 distinción se hace mirando si el valor está vacío. Vale igual para reglas de
 regex y de función.
 
+**Una regla de función no marca error mientras la celda de la que depende siga
+vacía.** Es el caso de Tipo y Nº de cuenta en Pago a Terceros, que se leen contra
+Forma de Pago (`faltaFormaPago()`): con la forma de pago sin elegir, la regla
+caía en la rama de ventanilla y pintaba de rojo una cuenta correcta, con el
+mensaje de CHQ/EFE —una opción que el usuario no había elegido— y sin nada que
+tocar en esa celda para arreglarlo. El usuario no cometió ningún error: le falta
+decidir. No abre ningún agujero, porque la celda que decide queda **pendiente** y
+bloquea la descarga igual; al elegirla, las dependientes se revalidan contra la
+rama que corresponda.
+
+Si agregás una regla que mira otra columna, empezala por ese caso. La excepción
+que hay hoy es el Nº de ID contra Tipo ID: ahí la celda que decide solo cambia el
+**largo** esperado, el campo se pide siempre, y el mensaje dice exactamente qué
+hacer ("Elige primero el Tipo ID"), así que el rojo es accionable.
+
 **Los campos generales usan los mismos tres estados**, vía `getMetadataState()`.
 No es cosmético: un campo general arranca vacío y se ve apenas se abre la app, así
 que con dos estados la primera pantalla recibe al usuario en rojo por un error
@@ -220,6 +240,57 @@ que todavía no cometió. `validateMetadata()` devuelve el desglose
 lugares distintos: el error tiene su propio mensaje de estado y el pendiente se
 suma a la cuenta de campos que faltan de la grilla — para el usuario son lo
 mismo, cosas que completar antes de descargar.
+
+**La lista de errores del pie** (`collectErrors()` + `renderErrorList()`) es la
+tercera salida de la validación, junto al pintado de las celdas y el mensaje de
+estado. Entra una línea por cada campo o celda que impide descargar, con la
+ubicación en una etiqueta —`Fila 3`, numerada desde 1 como la ve el usuario, o
+`General` para los campos de arriba de la grilla, que van primero—, el nombre
+del campo, el valor y el mensaje de la columna. Lo que la define:
+
+- **Los pendientes entran recién después del primer intento de descarga**
+  (`intentoDescarga`, el cuarto argumento `incluirPendientes`). Antes, vacío es
+  "todavía no llegué" y listarlo llenaría el panel de campos que el usuario ni
+  tocó; después, ya dijo que terminó y necesita ver todo lo que lo separa del
+  archivo, no solo lo que escribió mal. La bandera se apaga al cambiar de
+  generador, al resetear y después de una descarga exitosa.
+- **Cada entrada lleva un `estado`**, que es lo que estructura el panel:
+  `'error'` es un valor mal cargado —se corrige— y `'falta'` es un obligatorio
+  todavía vacío —se completa—. Son dos trabajos distintos, así que se ven
+  distinto: rojo y ámbar, con el color en un filete a la izquierda de la línea,
+  en la etiqueta de ubicación y en el valor. Las clases salen enteras de
+  `ESTILO_ESTADO`, como las de los inputs. La cabecera toma el color del estado
+  más grave que haya en la lista: si lo único que pasa es que falta completar,
+  el panel entero va en ámbar — recibir en rojo a quien no se equivocó, solo no
+  terminó, es el mismo error que pintar de rojo una celda vacía.
+- **Lo que está en error muestra el valor tal como se escribió**, en
+  monoespaciada, para poder compararlo contra la planilla de la que salió. Lo
+  que falta no tiene valor que mostrar: en su lugar va `sin completar`.
+- **Si no hay ningún registro, la lista lo dice.** Es el único motivo de bloqueo
+  que no es una celda, y sin esa entrada presionar Descargar con la grilla vacía
+  no mostraría nada. Va sin etiqueta de ubicación —no es de ninguna fila— y el
+  render deja el hueco en su lugar, para que la columna no se rompa cuando
+  convive con otras líneas.
+- **Recorre `getVisibleColumns()`**, igual que la validación. Listar el error de
+  una columna oculta dejaría al usuario con la descarga bloqueada y sin dónde
+  tocar para arreglarlo.
+- **`collectErrors()` va sobre los datos, no sobre los inputs pintados.** Por eso
+  se verifica sin navegador (`motor.test.js`): la lista es lo que el usuario lee
+  para corregir, y si nombra la fila equivocada manda a arreglar un dato que
+  estaba bien.
+
+**El botón de descarga no se deshabilita nunca.** Quien decide si el archivo sale
+es `exportTxt()`, con el booleano que devuelve `validateGrid()`: si algo bloquea,
+no descarga y hace `scrollIntoView` al panel. Un botón apagado no explica qué
+falta —y con la grilla desplazada a lo ancho, la celda roja puede ni verse—;
+la lista sí, y solo aparece cuando hace falta. `statusMessage` sigue mostrando el
+resumen al lado del botón.
+
+El panel se esconde solo cuando no queda ningún error, incluido el cambio a un
+generador sin columnas. El valor que se muestra lo escribió el usuario: va por
+`escapeHtml()`. El ícono del título vive estático en `index.html` a propósito —
+`renderErrorList()` corre en cada tecleo y reescribir un `data-lucide` obligaría
+a un `lucide.createIcons()` por letra.
 
 Flujo de render: `init()` → `loadGenerator()` → `loadFromStorage()` +
 `renderSidebar()` + `renderMetadataFields()` + `renderHeader()` + `renderGrid()`.
@@ -305,6 +376,24 @@ Los campos con largo fijo dentro de la línea (el valor de 13 dígitos de Pago a
 Terceros, la cuenta de empresa de 10) se arman con `padLeft` en `exportValue` o
 en `exportRow`, no en la validación: la grilla acepta lo que el usuario escribe
 natural (`12645.76`) y el relleno pasa al exportar.
+
+**Los ceros a la izquierda nunca se le piden al usuario.** Excel se los come a
+todo lo que le parezca un número, así que una planilla real llega con la cédula
+`0912378320` convertida en `912378320` y el código `0017` en `17`. Pedirle que
+los reponga a mano es pedirle que arregle la planilla fila por fila. La regla es
+que **la regla acepta el valor sin ceros y `exportValue` los repone**
+(`formatTerceroAccount`, `formatTerceroId`, `formatTerceroInstitucion`). Dos
+cosas que van con eso:
+
+- **El relleno completa, no arregla.** Las reglas siguen exigiendo un valor
+  plausible: la cédula acepta 9 o 10 dígitos porque lo que falta es el cero de la
+  provincia, pero una de 8 se sigue marcando en rojo. Rellenar cualquier cosa
+  cambiaría un error visible por un dato plausible y equivocado, que es el peor
+  de los dos.
+- **Si el valor se usa para decidir, se compara ya rellenado.** El código de
+  institución no se rellena solo al exportar: `isBancoGuayaquil()` lo normaliza
+  antes de comparar, o escribir `17` haría que la cuenta del campo 11 se validara
+  contra la regla de otra institución y saliera sin sus ceros.
 
 ## Cosas a tener en cuenta
 

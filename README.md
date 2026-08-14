@@ -119,11 +119,11 @@ Y estas son las columnas:
 | ------- | ----- | ----------- |
 | Valor | Hasta 11 enteros y 2 decimales (`12645.76` → `0000001264576`) | Sí |
 | Forma Pago | `CTA` cuenta, `CHQ` cheque, `EFE` efectivo | Sí |
-| Cód. Institución | 4 o 15 caracteres (`0017` = BG) | Sí |
+| Cód. Institución | 4 o 15 caracteres (`0017` = BG). Si escribís `17`, sale `0017` | Sí |
 | Tipo Cuenta | `CTE` o `AHO` | Solo con `CTA` |
-| Nº Cuenta | BG: hasta 10 dígitos, con ceros a la izquierda. Otros bancos: hasta 30, sin relleno | Solo con `CTA` |
+| Nº Cuenta | BG: hasta 10 dígitos; los ceros de la izquierda los pone el generador. Otros bancos: hasta 30, sin relleno | Solo con `CTA` |
 | Tipo ID | `C` cédula, `R` RUC, `P` pasaporte | Sí |
-| Nº ID | Cédula 10 dígitos, RUC 13, pasaporte hasta 13 | Sí |
+| Nº ID | Cédula 10 dígitos, RUC 13, pasaporte hasta 13. Si falta el cero de la provincia, se repone al exportar | Sí |
 | Nombre Beneficiario | Hasta 40 caracteres | Sí |
 | Referencia | Hasta 200 caracteres: el nº de factura | Sí |
 
@@ -173,9 +173,19 @@ rechaza dos cargas con el mismo nombre en la misma fecha.
   marcan en rojo; las que solo están **pendientes** (obligatorias y todavía
   vacías) llevan un borde punteado, para que empezar a llenar una fila no la
   pinte entera de rojo. En los dos casos el detalle aparece al pasar el mouse, y
-  el pie de la grilla indica cuántos campos faltan. El botón de descarga se
-  habilita solo cuando los campos generales están completos, no queda nada rojo
-  ni pendiente en la grilla y hay al menos un registro.
+  el pie de la grilla indica cuántos campos faltan.
+- **Lista de errores**: al pie del panel aparece cada error con su fila, el
+  campo, el valor cargado y el motivo, así no hay que ir a buscar la celda roja a
+  lo ancho de la grilla.
+- **Descargar valida**: el botón está siempre habilitado. Al presionarlo se
+  revisa todo el formulario; si algo falta o está mal, no se descarga nada y la
+  lista de abajo pasa a mostrar también **los campos que faltan completar** —y no
+  solo los que están mal— para que se vea de una todo lo que separa del archivo.
+  Antes del primer intento no se muestra nada de eso: un campo todavía vacío no
+  es un error.
+- **Los ceros a la izquierda no se cargan a mano**: Excel se los come al copiar,
+  así que el generador los repone al exportar (`1234567` → `0001234567`,
+  `912378320` → `0912378320`, `17` → `0017`).
 - **Guardado automático**: todo queda en `localStorage` del navegador (datos,
   campos generales, nombre de archivo, tema y estado del panel lateral). Se
   recupera al volver a abrir.

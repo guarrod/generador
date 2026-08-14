@@ -108,6 +108,151 @@ module.exports = {
         check('la columna oculta sí cuenta', app.isRowEmpty({ escondida: 'algo' }, FALSO), false);
         check('un generador sin columnas no tiene filas con contenido', app.isRowEmpty({ libre: 'algo' }, { id: 'x' }), true);
 
+        // ── collectErrors: la lista que se muestra al pie ────────────────────
+        // Es lo que el usuario lee para saber qué corregir, así que lo que
+        // importa no es cuántas entradas hay sino que cada una apunte a la celda
+        // correcta: si nombra otra fila, manda a arreglar un dato que estaba
+        // bien. Va sobre los datos, no sobre los inputs, y por eso se puede
+        // verificar acá.
+        const errores = (gen, filas, metadata = {}) => app.collectErrors(gen, filas, metadata);
+        const filaSana = app.createEmptyRow(FALSO, 0);
+
+        check('sin filas no hay errores', errores(FALSO, []), []);
+        check('una fila válida no aporta errores', errores(FALSO, [filaSana]), []);
+        check('una celda inválida entra con su estado, ubicación, campo, valor y mensaje',
+            errores(FALSO, [{ ...filaSana, libre: 'a,b' }]),
+            [{ estado: 'error', ubicacion: 'Fila 1', campo: 'Libre', valor: 'a,b', mensaje: 'x' }]);
+        check('el valor va trimmeado, como lo valida la grilla',
+            errores(FALSO, [{ ...filaSana, libre: '  a,b  ' }])[0].valor, 'a,b');
+        // Las filas se numeran como las ve el usuario, desde 1.
+        check('la numeración arranca en 1',
+            errores(FALSO, [filaSana, filaSana, { ...filaSana, libre: 'a,b' }])[0].ubicacion, 'Fila 3');
+        // Vacío es pendiente, no error: la lista quedaría llena de campos que el
+        // usuario todavía no tocó. Cuántos faltan ya lo dice statusMessage.
+        check('la celda obligatoria vacía no entra en la lista',
+            errores(FALSO, [{ ...filaSana, libre: '' }]), []);
+        check('la fila entera vacía tampoco',
+            errores(FALSO, [app.createEmptyRow({ id: 'x', columns: FALSO.columns }, 0), {}]), []);
+        check('varios errores de una misma fila entran todos',
+            errores(FALSO, [{ ...filaSana, libre: 'a,b', opcional: 'abc' }]).map(e => e.campo),
+            ['Libre', 'Opcional']);
+
+        // Una columna oculta no se puede corregir desde la pantalla: listar un
+        // error suyo deja al usuario con la descarga bloqueada y sin dónde
+        // tocar. Por eso la lista recorre las visibles, igual que la validación.
+        const CON_OCULTA_ROTA = {
+            ...FALSO,
+            columns: [...FALSO.columns, { id: 'rota', label: 'Rota', rule: /^$/, error: 'x', hidden: true }],
+        };
+        check('la columna oculta no entra en la lista',
+            errores(CON_OCULTA_ROTA, [{ ...filaSana, rota: 'algo' }]), []);
+
+        // Los campos generales comparten la lista con la grilla: para el usuario
+        // son lo mismo, cosas que tiene que arreglar antes de descargar. Van
+        // primero porque uno solo puede invalidar el archivo entero.
+        const CON_GENERAL = { ...FALSO, metadata: [{ id: 'general', label: 'General', rule: /^\d{1,4}$/, error: 'x' }] };
+        check('un campo general inválido entra con ubicación propia',
+            errores(CON_GENERAL, [], { general: '12345' }),
+            [{ estado: 'error', ubicacion: 'General', campo: 'General', valor: '12345', mensaje: 'x' }]);
+        check('el campo general vacío no entra', errores(CON_GENERAL, [], { general: '' }), []);
+        check('los campos generales van antes que la grilla',
+            errores(CON_GENERAL, [{ ...filaSana, libre: 'a,b' }], { general: '12345' }).map(e => e.ubicacion),
+            ['General', 'Fila 1']);
+        check('un generador sin metadata no rompe la lista', errores(FALSO, [], { general: '12345' }), []);
+
+        // ── Después de presionar Descargar entra también lo que falta ───────
+        // El botón está siempre habilitado y las validaciones corren al
+        // presionarlo. Ahí el corte cambia: hasta ese momento un campo vacío es
+        // "todavía no llegué" y no se lista; después del intento el usuario ya
+        // dijo que terminó, y necesita ver todo lo que lo separa del archivo.
+        const conPendientes = (gen, filas, metadata = {}) => app.collectErrors(gen, filas, metadata, true);
+
+        check('la celda vacía obligatoria sí entra después del intento',
+            conPendientes(FALSO, [filaSana]).map(e => e.campo), ['Libre', 'Transformada']);
+        // El estado es lo que separa "está mal cargado" de "falta completarlo";
+        // el mensaje sigue siendo el de la columna, sin prefijos.
+        check('y se distingue por su estado', conPendientes(FALSO, [filaSana])[0].estado, 'falta');
+        check('sin cambiarle el mensaje a la columna', conPendientes(FALSO, [filaSana])[0].mensaje, 'x');
+        check('la que falta no muestra valor', conPendientes(FALSO, [filaSana])[0].valor, '');
+        // Una columna sin `error` propio necesita decir algo igual. La segunda
+        // columna va llena para que la fila cuente como registro: si no, la
+        // única entrada sería la de la grilla vacía.
+        const SIN_MENSAJE = { columns: [{ id: 'x', label: 'X', rule: /^\d+$/ }, { id: 'lleno', label: 'Lleno' }] };
+        check('sin mensaje de columna, uno por defecto',
+            conPendientes(SIN_MENSAJE, [{ x: '', lleno: 'algo' }])[0].mensaje, 'Este campo es obligatorio');
+        // Vacía y válida no falta: la opcional no tiene por qué completarse.
+        check('la columna opcional vacía no entra',
+            conPendientes(FALSO, [filaSana]).some(e => e.campo === 'Opcional'), false);
+        check('el error y lo pendiente conviven en la misma lista',
+            conPendientes(FALSO, [{ ...filaSana, libre: 'a,b' }]).map(e => e.campo), ['Libre', 'Transformada']);
+        check('el campo general vacío entra como falta',
+            conPendientes(CON_GENERAL, [filaSana], { general: '' })[0],
+            { estado: 'falta', ubicacion: 'General', campo: 'General', valor: '', mensaje: 'x' });
+        // Sin esto, presionar Descargar con la grilla vacía no muestra nada: no
+        // hay ninguna celda de la que quejarse y el motivo es que no hay filas.
+        check('la grilla sin registros lo dice', conPendientes(FALSO, []).map(e => e.campo), ['La grilla está vacía']);
+        check('una fila entera vacía tampoco es un registro',
+            conPendientes(FALSO, [{}]).map(e => e.campo), ['La grilla está vacía']);
+        check('con un registro cargado ya no lo dice',
+            conPendientes(FALSO, [filaSana]).some(e => e.campo === 'La grilla está vacía'), false);
+        // No es de ninguna fila: va sin etiqueta de ubicación.
+        check('la grilla vacía no lleva ubicación', conPendientes(FALSO, [])[0].ubicacion, '');
+        // Antes del intento nada de esto se muestra.
+        check('sin intento de descarga la lista sigue vacía', errores(FALSO, [filaSana]), []);
+
+        // ── renderErrorList: el panel entra y sale solo ──────────────────────
+        const panel = t.nodos['error-panel'];
+        const titulo = t.nodos['error-panel-title'];
+        const lista = t.nodos['error-list'];
+
+        app.renderErrorList(errores(FALSO, [{ ...filaSana, libre: 'a,b' }]));
+        check('con errores el panel se muestra', panel.classList.contains('hidden'), false);
+        // "campos" y no "errores": después del intento de descarga la lista
+        // también trae lo que falta completar, que no es un error de nadie.
+        check('el título cuenta el campo', titulo.textContent, '1 campo impide la descarga');
+        check('el item nombra la fila y el campo',
+            [lista.innerHTML.includes('Fila 1'), lista.innerHTML.includes('Libre')], [true, true]);
+
+        app.renderErrorList(errores(FALSO, [{ ...filaSana, libre: 'a,b' }, { ...filaSana, libre: 'c,d' }]));
+        check('el título va en plural con más de uno', titulo.textContent, '2 campos impiden la descarga');
+
+        app.renderErrorList([]);
+        check('sin errores el panel se oculta', panel.classList.contains('hidden'), true);
+        check('y no deja items viejos en pantalla', lista.innerHTML, '');
+
+        // El valor lo escribió el usuario y se interpola en HTML: va escapado.
+        app.renderErrorList([{ ubicacion: 'Fila 1', campo: 'Libre', valor: '<img src=x>', mensaje: 'x' }]);
+        check('el valor del usuario va escapado', lista.innerHTML.includes('&lt;img src=x&gt;'), true);
+
+        // ── El color dice de qué se trata cada línea ─────────────────────────
+        const cabecera = t.nodos['error-panel-head'];
+        const falta = { estado: 'falta', ubicacion: 'Fila 1', campo: 'Libre', valor: '', mensaje: 'x' };
+        const malCargado = { estado: 'error', ubicacion: 'Fila 2', campo: 'Libre', valor: 'a,b', mensaje: 'x' };
+
+        app.renderErrorList([falta]);
+        check('lo que falta va en ámbar, no en rojo',
+            [lista.innerHTML.includes('amber'), lista.innerHTML.includes('red')], [true, false]);
+        check('y sin valor dice en qué estado está', lista.innerHTML.includes('sin completar'), true);
+        check('la cabecera acompaña: nadie recibe rojo por no haber terminado',
+            [cabecera.className.includes('amber'), cabecera.className.includes('red')], [true, false]);
+
+        app.renderErrorList([malCargado]);
+        check('lo mal cargado va en rojo', lista.innerHTML.includes('border-l-red-500'), true);
+        check('y muestra el valor tal como se escribió', lista.innerHTML.includes('a,b'), true);
+
+        // Con las dos cosas juntas manda el rojo: es lo más grave de la lista.
+        app.renderErrorList([falta, malCargado]);
+        check('mezclados, la cabecera va en rojo', cabecera.className.includes('red'), true);
+        check('pero cada línea conserva su color',
+            [lista.innerHTML.includes('border-l-amber-500'), lista.innerHTML.includes('border-l-red-500')], [true, true]);
+
+        // Sin ubicación no se imprime una etiqueta vacía, que se vería como un
+        // recuadro de color sin texto.
+        app.renderErrorList([{ estado: 'falta', ubicacion: '', campo: 'La grilla está vacía', valor: '', mensaje: 'x' }]);
+        check('la entrada sin ubicación no lleva etiqueta', lista.innerHTML.includes('uppercase'), false);
+        check('pero mantiene la sangría de la columna', lista.innerHTML.includes('sm:w-28'), true);
+        app.renderErrorList([]);
+
         // ── padLeft / padRight: no son simétricos ────────────────────────────
         check('padLeft rellena con ceros a la izquierda', app.padLeft('123', 6), '000123');
         check('padRight rellena con espacios a la derecha', app.padRight('abc', 6), 'abc   ');

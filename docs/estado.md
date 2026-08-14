@@ -108,6 +108,30 @@ aparezca.
   - **La localidad de pago viaja siempre en blanco**, que para el banco es
     "cualquier localidad". Si hace falta dirigir un pago en ventanilla a una
     ciudad, vuelve a ser una columna.
+- **Los ceros a la izquierda los pone el generador, no el usuario.** Excel se los
+  come a todo lo que le parezca un número: una planilla real llega con la cédula
+  `0912378320` convertida en `912378320` y el código de institución `0017` en
+  `17`. Las reglas aceptan el valor sin ceros y el relleno pasa al exportar, así
+  que el archivo sale igual y nadie tiene que corregir la planilla a mano. Dos
+  límites que conviene tener presentes:
+  - **Completa, no arregla.** La cédula acepta 9 o 10 dígitos —lo que falta es el
+    cero de la provincia— pero una de 8 se sigue marcando en rojo. Rellenar
+    cualquier cosa mandaría al archivo una identificación plausible y
+    equivocada, que es el peor de los dos errores.
+  - **Solo se rellena lo que es todo dígitos.** Un código de institución
+    alfanumérico de menos de 4 caracteres sigue siendo inválido: no hay forma de
+    saber si le faltan ceros o está mal cargado.
+- **Los errores se listan al pie del panel.** Además de pintar la celda de rojo,
+  la app lista abajo cada error con su fila, su campo, el valor y el motivo. Es
+  lo que evita tener que buscar la celda roja a lo ancho de una grilla que se
+  desplaza.
+- **El botón de descarga no se deshabilita: valida al presionarlo.** Si algo
+  bloquea, no baja el archivo y la lista pasa a incluir también los campos que
+  faltan completar. Antes de ese primer intento solo se listan los errores: un
+  campo todavía vacío no es un error del usuario, y recibirlo con una lista de
+  reclamos apenas abre la app es peor que no decirle nada. La contra de esta
+  decisión es que ya no se ve de un vistazo si el archivo está listo sin
+  presionar; para eso sigue el mensaje de estado al lado del botón.
 - **Tailwind se carga por CDN** (`cdn.tailwindcss.com`), que la propia
   documentación de Tailwind desaconseja para producción. Sirve para una
   herramienta interna sin build; si esto va a un entorno productivo real, hay que
