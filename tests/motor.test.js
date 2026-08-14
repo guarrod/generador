@@ -72,6 +72,42 @@ module.exports = {
             FALSO.columns.filter(c => c.id !== 'escondida').map(c => c.id));
         check('pero siguen en columns', FALSO.columns.length, app.getVisibleColumns(FALSO).length + 1);
 
+        // ── Los campos generales tienen los mismos tres estados que la grilla ─
+        // Vacío es "pendiente", no error: el campo arranca vacío y pintarlo de
+        // rojo apenas se abre la app le señala al usuario un error que todavía no
+        // cometió. Los dos bloquean la descarga igual, así que el corte es
+        // visual — pero es el que hace que la app no reciba a nadie en rojo.
+        const campoGeneral = { id: 'general', label: 'General', rule: /^\d{1,4}$/, error: 'x' };
+        const estadoCon = valor => { t.setMetadata({ general: valor }); return app.getMetadataState(campoGeneral); };
+        check('campo general vacío: pendiente, no error', estadoCon(''), 'pending');
+        check('campo general con espacios: pendiente', estadoCon('   '), 'pending');
+        check('campo general que no cumple la regla: error', estadoCon('12345'), 'error');
+        check('campo general que la cumple: válido', estadoCon('123'), 'valid');
+        check('el pendiente no se pinta de rojo', app.getMetadataInputClass(campoGeneral, 'pending').includes('red'), false);
+        check('el pendiente va punteado, como en la grilla', app.getMetadataInputClass(campoGeneral, 'pending').includes('border-dashed'), true);
+        check('el error sí se pinta de rojo', app.getMetadataInputClass(campoGeneral, 'error').includes('border-red-500/50'), true);
+        // El input no puede cambiar de tamaño al pasar de un estado a otro.
+        check('los tres estados tienen el mismo padding',
+            new Set(['valid', 'pending', 'error'].map(s => app.getMetadataInputClass(campoGeneral, s).includes('p-3'))), new Set([true]));
+        t.setMetadata({});
+
+        // ── isRowEmpty: se mide contra las columnas declaradas ───────────────
+        // La fila vacía decide dos cosas: qué filas van al archivo y cuáles
+        // bloquean la descarga por incompletas. Se mira columna por columna y no
+        // `Object.values(row)` porque los datos guardados conservan las claves de
+        // una config anterior: al sacar una columna, su valor queda en
+        // localStorage y una fila que en pantalla se ve vacía seguiría contando
+        // como registro — sin forma de borrarla, porque la grilla no borra filas.
+        check('sin ninguna celda con valor está vacía', app.isRowEmpty({}, FALSO), true);
+        check('una celda con valor la hace no vacía', app.isRowEmpty({ libre: 'algo' }, FALSO), false);
+        // Con preseteos la fila nueva ya trae contenido: cuenta como registro
+        // desde que se crea. Es lo de siempre, queda fijado acá.
+        check('los preseteos hacen que la fila nueva cuente', app.isRowEmpty(app.createEmptyRow(FALSO, 0), FALSO), false);
+        check('los espacios no cuentan como valor', app.isRowEmpty({ libre: '   ' }, FALSO), true);
+        check('una clave que ya no es columna no la hace no vacía', app.isRowEmpty({ columna_vieja: 'PA' }, FALSO), true);
+        check('la columna oculta sí cuenta', app.isRowEmpty({ escondida: 'algo' }, FALSO), false);
+        check('un generador sin columnas no tiene filas con contenido', app.isRowEmpty({ libre: 'algo' }, { id: 'x' }), true);
+
         // ── padLeft / padRight: no son simétricos ────────────────────────────
         check('padLeft rellena con ceros a la izquierda', app.padLeft('123', 6), '000123');
         check('padRight rellena con espacios a la derecha', app.padRight('abc', 6), 'abc   ');

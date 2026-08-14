@@ -59,7 +59,8 @@ Cambiar el objeto de un generador **no puede** afectar a los demás: son datos
 separados, con su propia clave de `localStorage`. El riesgo de romper Pago de
 Servicios arreglando Pago a Terceros vive en un solo lugar: **las funciones que
 los tres comparten** — `isCellValid`, `getExportValue`, `createEmptyRow`,
-`getColumnDefault`, `handlePaste`, `validateGrid`, `padLeft`/`padRight`.
+`getColumnDefault`, `isRowEmpty`, `handlePaste`, `validateGrid`,
+`padLeft`/`padRight`.
 
 De ahí la forma de trabajar:
 
@@ -116,15 +117,30 @@ Cinco puntos de extensión declarativos, todos opcionales y retrocompatibles:
   celda se exporta tal cual.
 - **`exportRow(row, index, metadata, columns)`** arma la línea completa cuando
   el orden de salida no coincide con las columnas o hay literales y valores
-  derivados intercalados (es el caso de Pago a Terceros: mete `PA`, `USD` y el
-  secuencial que la grilla no pide). Dentro conviene usar
+  derivados intercalados. Es el caso de Pago a Terceros, donde la grilla pide 10
+  de los 20 campos y `exportRow` pone los otros 10 en su posición: los que el
+  formato fija (`PA`, `USD`), la cuenta de la empresa —que viene de `metadata`
+  porque es una sola para todo el archivo—, el secuencial —que es `index`, la
+  posición de la línea— y el código, que el formato define como copia de otro
+  campo de la misma línea. Dentro conviene usar
   `getExportValue(findColumn(columns, id), row)` para no duplicar lo que ya
   declara `exportValue`.
+
+  **Un campo derivado no se pide, así que tampoco se valida.** Vale para él la
+  misma condición que para `hidden`: lo que se exporta tiene que ser válido pase
+  lo que pase en el resto de la fila. Si sale de otra columna, se hereda su
+  validación (el código de Pago a Terceros sale del Nº de cuenta o del Nº de ID,
+  las dos validadas); si sale de `metadata`, lo cubre `validateMetadata()`, que
+  bloquea la descarga igual que una celda en rojo. Lo que **no** está cubierto es
+  que el campo de origen entre en el largo del de destino — ver el caso del campo
+  5 en [docs/estado.md](docs/estado.md).
 - **`defaultValue`** presetea la celda en lugar de dejarla vacía (`CTA` en la
-  Forma de Pago de Pago de Servicios; `PA`, `USD` y el secuencial en la réplica
-  del formato oficial). Acepta un valor fijo o una **función del número de
-  fila** — `index => String(index + 1)` es lo que numera solo el secuencial —,
-  y las dos formas pasan por `getColumnDefault()`. Se aplica en dos momentos, y
+  Forma de Pago de Pago de Servicios). Acepta un valor fijo o una **función del
+  número de fila** — `index => String(index + 1)` para una columna que se numere
+  sola —, y las dos formas pasan por `getColumnDefault()`. Hoy ningún generador
+  instalado usa la forma de función: la usaba el secuencial de Pago a Terceros,
+  antes de pasar a derivarse en `exportRow`. Queda porque el punto de extensión
+  ya está y `motor.test.js` lo verifica. Se aplica en dos momentos, y
   hacen falta los dos: `createEmptyRow(gen, index)` para cada fila nueva (lo
   usan `addRows` y el pegado desde Excel — si agregás otro camino que cree
   filas, tiene que pasar por ahí **con el índice que le va a tocar**) y
@@ -151,12 +167,20 @@ Cinco puntos de extensión declarativos, todos opcionales y retrocompatibles:
   | Forma | Ejemplo |
   | ----- | ------- |
   | La columna es `optional` | **Monto Máx**, de Pago de Servicios: es la única columna oculta hoy |
-  | Tiene un `defaultValue` constante que cumple su regla | Sería el caso de Cód. Orientación (`PA`) o Moneda (`USD`) en Pago a Terceros |
-  | Su regla de función acepta el vacío siempre | Sería el caso de Localidad de pago: con `CTA` el formato la exige en blanco, y con `CHQ`/`EFE` en blanco significa "cualquier localidad" |
+  | Tiene un `defaultValue` constante que cumple su regla | Una columna que el formato fija en un solo valor |
+  | Su regla de función acepta el vacío siempre | Una columna que el formato acepta en blanco bajo cualquier condición |
 
-  Las dos últimas están anotadas porque en Pago a Terceros se ocultaron esas
-  columnas un rato y después se revirtió: si vuelve a plantearse, el análisis ya
-  está hecho y el invariante lo verifica solo.
+  Las dos últimas están anotadas como análisis hecho, no como descripción del
+  código: si vuelve a plantearse esconder una columna así, el invariante lo
+  verifica solo.
+
+  **`hidden` no es la única forma de sacar una columna de la grilla, y no siempre
+  es la que corresponde.** Esconderla la deja en `columns`, así que se sigue
+  guardando y exportando por fila: sirve cuando el valor es de la fila y el
+  usuario no tiene nada que decidir. Cuando el valor no es de la fila —es del
+  archivo, de la posición de la línea, o copia de otra columna— la columna se
+  saca de `columns` y el campo se arma en `exportRow`. Es lo que hace Pago a
+  Terceros con 10 de sus 20 campos.
 
   No hace falta acordarse: `tests/motor.test.js` recorre las columnas ocultas de
   todos los generadores y verifica el invariante. Si alguien esconde una columna
@@ -172,6 +196,14 @@ desde Excel se mapea contra lo visible, que es lo que el usuario tiene delante).
 camino que indexe celdas del DOM contra columnas, tiene que usar
 `getVisibleColumns()` o los índices se desalinean.
 
+`isRowEmpty(row, gen)` decide dos cosas a la vez: qué filas van al archivo
+(`getNonEmptyRows`) y cuáles se saltea la validación por estar en blanco. Mide
+contra **las columnas que el generador declara hoy**, no contra las claves que
+tiene el objeto. La diferencia aparece al sacar una columna: su valor sigue en lo
+que hay guardado en `localStorage`, así que una fila que en pantalla se ve vacía
+seguiría contando como registro —y la grilla no borra filas, así que bloquearía
+la descarga para siempre— o viajaría al archivo como una línea de campos vacíos.
+
 `validateGrid()` clasifica cada celda en tres estados, no dos: válida, **pendiente**
 (vacía e inválida — el usuario todavía no llegó) y error (tiene un valor que no
 cumple la regla). Solo el error pinta de rojo y tiñe la fila; el pendiente usa
@@ -179,6 +211,15 @@ borde punteado. Los dos bloquean la descarga por igual, así que el corte entre
 ambos es puramente visual: `isCellValid()` sigue devolviendo un booleano y la
 distinción se hace mirando si el valor está vacío. Vale igual para reglas de
 regex y de función.
+
+**Los campos generales usan los mismos tres estados**, vía `getMetadataState()`.
+No es cosmético: un campo general arranca vacío y se ve apenas se abre la app, así
+que con dos estados la primera pantalla recibe al usuario en rojo por un error
+que todavía no cometió. `validateMetadata()` devuelve el desglose
+(`{ hasErrors, pending }`) en vez de un booleano porque los dos números van a
+lugares distintos: el error tiene su propio mensaje de estado y el pendiente se
+suma a la cuenta de campos que faltan de la grilla — para el usuario son lo
+mismo, cosas que completar antes de descargar.
 
 Flujo de render: `init()` → `loadGenerator()` → `loadFromStorage()` +
 `renderSidebar()` + `renderMetadataFields()` + `renderHeader()` + `renderGrid()`.
@@ -217,9 +258,10 @@ en el `notice` (es el caso del Monto Máx de Pago de Servicios).
 - La UI está toda en español. Los `id` de columnas y las claves de storage, en
   snake_case sin tildes.
 - Las clases de los inputs salen de `getBaseInputClass()`, `getErrorInputClass()`,
-  `getPendingInputClass()` y `getMetadataInputClass()` — la validación las
-  reasigna enteras, no toca clases sueltas. Si agregás estilos a un input, van
-  ahí. Misma idea en `getSidebarToggleClass()` para el botón de Ayuda.
+  `getPendingInputClass()` y `getMetadataInputClass(field, state)` — la
+  validación las reasigna enteras, no toca clases sueltas. Si agregás estilos a
+  un input, van ahí. Los tres estados de un campo general comparten el padding a
+  propósito: si difieren, el campo cambia de tamaño al validarse. Misma idea en `getSidebarToggleClass()` para el botón de Ayuda.
 - Los datos del usuario que se interpolan en HTML pasan por `escapeHtml()`.
 
 ## Formatos de ancho fijo

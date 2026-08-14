@@ -42,22 +42,33 @@ const APP_CONFIG = {
         // Sigue el formato tal como lo publica Banco Guayaquil en el centro de
         // ayuda (artículo 11032985670804, actualizado 2026-08-09): los 20 campos,
         // en su orden, con la longitud y la observación de cada uno transcritas
-        // en docs/formato-pago-terceros.md. Ninguna columna está oculta: lo que
-        // se ve en la grilla es exactamente lo que va al archivo.
+        // en docs/formato-pago-terceros.md.
+        //
+        // La grilla pide 9 de esos 20 campos: los que cambian de un beneficiario
+        // a otro. Los otros 11 no se cargan, y los pone `exportRow` en su
+        // posición: los que el formato fija (1 `PA`, 6 `USD`), la cuenta de la
+        // empresa —una sola para todo el archivo, por eso es campo general y no
+        // columna—, el secuencial —que es la posición de la línea—, el código
+        // —que el propio formato define como copia de otro campo de la misma
+        // línea— y los opcionales, que viajan vacíos (4, 15, 16, 17, 18 y 20).
+        // Las 20 posiciones salen igual: lo que cambia es quién las llena.
+        //
+        // Ojo con el campo 20: es el que lleva la notificación por correo al
+        // beneficiario (`|proveedor@mail.com`) y es un dato de cada proveedor, no
+        // del archivo, así que fuera de la grilla no hay dónde cargarlo. Con el
+        // campo en blanco el banco no manda esos correos. Ver docs/estado.md.
         {
             id: 'pago_terceros',
             label: 'Pago a Terceros',
-            title: 'Generador de Pago a Terceros (Cash Management)',
-            description: 'Los 20 campos del formato oficial de Banco Guayaquil, uno por columna y en su orden. La línea del archivo es un volcado directo de la fila.',
+            title: 'Generador de Pago a Terceros (Pagar por archivo)',
+            description: 'Cargá lo que cambia en cada beneficiario. Los campos que el formato fija o deriva los completa el generador al exportar.',
             storageKey: 'bg_gen_pago_terceros_data',
+            metadataKey: 'bg_gen_pago_terceros_metadata',
             defaultFilename: () => `BENEFICIARIO_${formatDate(new Date())}_01`,
+            metadata: [
+                { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Campo 2 · Numérico/10. La cuenta que se debita, la misma para todo el archivo. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar' }
+            ],
             columns: [
-                { id: 'codigo_orientacion', label: 'Cód. Orientación', placeholder: 'PA', options: ['PA'], rule: /^PA$/i, error: 'Campo 1 · Alfanumérico/2. PA = Pago', defaultValue: 'PA', exportValue: value => value.toUpperCase(), width: 'w-32' },
-                { id: 'cuenta_empresa', label: 'Cuenta Empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Campo 2 · Numérico/10. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar', exportValue: value => padLeft(value, 10), width: 'w-32' },
-                { id: 'secuencial_pago', label: 'Secuencial', placeholder: '1', rule: /^\d{1,7}$/, error: 'Campo 3 · Numérico/7. Arranca en 1 dentro de la orden', defaultValue: index => String(index + 1), width: 'w-24' },
-                { id: 'comprobante', label: 'Comprobante', placeholder: 'Egreso, planilla...', rule: /^[^,]{0,20}$/, error: 'Campo 4 · Alfanumérico/20, opcional', optional: true },
-                { id: 'codigo', label: 'Código', placeholder: 'Cuenta o ID del proveedor', rule: /^[^,]{1,20}$/, error: 'Campo 5 · Alfanumérico/20. Con CTA, la cuenta del proveedor; en ventanilla, su identificación' },
-                { id: 'moneda', label: 'Moneda', placeholder: 'USD', options: ['USD'], rule: /^USD$/i, error: 'Campo 6 · Alfanumérico/3. USD = Dólares', defaultValue: 'USD', exportValue: value => value.toUpperCase(), width: 'w-24' },
                 { id: 'valor', label: 'Valor', placeholder: '12645.76', rule: /^\d{1,11}([.,]\d{1,2})?$/, error: 'Campo 7 · Numérico/13: 11 enteros y 2 decimales', exportValue: (value, row) => formatTerceroAmount(value), width: 'w-28' },
                 { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA', options: ['CTA', 'CHQ', 'EFE'], rule: /^(CTA|CHQ|EFE)$/i, error: 'Campo 8 · CTA crédito a cuenta, CHQ cheque, EFE efectivo', exportValue: value => value.toUpperCase(), width: 'w-28' },
                 {
@@ -95,45 +106,51 @@ const APP_CONFIG = {
                     exportValue: value => value.toUpperCase()
                 },
                 { id: 'nombre', label: 'Nombre Beneficiario', placeholder: 'Proveedor S.A.', rule: /^[^,]{1,40}$/, error: 'Campo 14 · Alfanumérico/40' },
-                { id: 'direccion', label: 'Dirección', placeholder: 'Opcional', rule: /^[^,]{0,40}$/, error: 'Campo 15 · Alfanumérico/40, opcional', optional: true },
-                { id: 'ciudad', label: 'Ciudad', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Campo 16 · Alfanumérico/20, opcional', optional: true },
-                { id: 'telefono', label: 'Teléfono', placeholder: 'Opcional', rule: /^[^,]{0,20}$/, error: 'Campo 17 · Alfanumérico/20, opcional', optional: true },
-                {
-                    id: 'localidad_pago', label: 'Localidad Pago', placeholder: 'QUITO, GUAYAQUIL...',
-                    rule: (value, row) => isCreditoCuenta(row) ? value === '' : /^[^,]{0,20}$/.test(value),
-                    error: 'Campo 18 · Alfanumérico/20. Con CTA va en blanco; con CHQ o EFE, en blanco = cualquier localidad',
-                    exportValue: value => value.toUpperCase()
-                },
-                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^,]{1,200}$/, error: 'Campo 19 · Alfanumérico/200. Es lo que se imprime como nº de factura en la notificación' },
-                { id: 'referencia_adicional', label: 'Ref. Adicional', placeholder: '|proveedor@mail.com', rule: /^[^,]{0,100}$/, error: 'Campo 20 · Alfanumérico/100, opcional. Para notificar por correo: pipe y después la dirección', optional: true }
+                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^,]{1,200}$/, error: 'Campo 19 · Alfanumérico/200. Es lo que se imprime como nº de factura en la notificación' }
             ],
-            // Sin exportRow: las 20 columnas ya están en el orden del formato, así
-            // que la línea es el volcado 1:1 que hace exportTxt() por defecto.
+            // Las 20 posiciones del formato, en orden. Las que la grilla no pide
+            // se arman acá; las que sí, salen por getExportValue para no duplicar
+            // lo que ya declara el `exportValue` de cada columna.
+            exportRow: (row, index, metadata, columns) => {
+                const campo = id => getExportValue(findColumn(columns, id), row);
+                return [
+                    'PA',                                                 //  1 · Código Orientación
+                    padLeft((metadata.cuenta_empresa || '').trim(), 10),  //  2 · Cuenta Empresa
+                    padLeft(index + 1, 7),                                //  3 · Secuencial Pago
+                    '',                                                   //  4 · Comprobante
+                    formatTerceroCodigo(row, columns),                    //  5 · Código
+                    'USD',                                                //  6 · Moneda
+                    campo('valor'),                                       //  7
+                    campo('forma_pago'),                                  //  8
+                    campo('codigo_institucion'),                          //  9
+                    campo('tipo_cuenta'),                                 // 10
+                    campo('numero_cuenta'),                               // 11
+                    campo('tipo_id'),                                     // 12
+                    campo('numero_id'),                                   // 13
+                    campo('nombre'),                                      // 14
+                    '',                                                   // 15 · Dirección
+                    '',                                                   // 16 · Ciudad
+                    '',                                                   // 17 · Teléfono
+                    '',                                                   // 18 · Localidad de pago
+                    campo('referencia'),                                  // 19
+                    '',                                                   // 20 · Referencia Adicional
+                ].join(',');
+            },
             recommendations: {
                 items: [
-                    { label: 'Cód. Orientación', html: `Campo 1 · ${chip('Alfanumérico/2')}. Indica el código del servicio: ${chip('PA')} = Pago. Viene puesto en cada fila.` },
-                    { label: 'Cuenta Empresa', html: `Campo 2 · ${chip('Numérico/10')}. La cuenta de la empresa que se usa para el servicio. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar: ${chip('1234567')} sale ${chip('0001234567')}.` },
-                    { label: 'Secuencial', html: `Campo 3 · ${chip('Numérico/7')}. Arranca en 1 dentro de la orden y se numera solo por fila. Podés cambiarlo: los desgloses de rubros solo aplican a pagos en ventanilla.` },
-                    { label: 'Comprobante', html: `Campo 4 · ${chip('Alfanumérico/20')}, opcional. Comprobante de pago, egreso, planilla. No hace falta rellenar con ceros.` },
-                    { label: 'Código', html: `Campo 5 · ${chip('Alfanumérico/20')}. Con ${chip('CTA')}, la cuenta del proveedor; en ventanilla, su identificación. También admite código de beneficiario o de proveedor.` },
-                    { label: 'Moneda', html: `Campo 6 · ${chip('Alfanumérico/3')}. Código de la moneda del movimiento: ${chip('USD')} = Dólares. Viene puesto en cada fila.` },
+                    { label: 'Cuenta de la empresa', html: `Campo 2 · ${chip('Numérico/10')}. La cuenta que se debita. Es una sola para todo el archivo: por eso va arriba de la grilla y no en cada fila. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar: ${chip('1234567')} sale ${chip('0001234567')}.` },
                     { label: 'Valor', html: `Campo 7 · ${chip('Numérico/13')}: 11 enteros y 2 decimales. ${chip('12645.76')} se exporta ${chip('0000001264576')}.` },
                     { label: 'Forma Pago', html: `Campo 8 · ${chip('CTA')} crédito a cuenta, ${chip('CHQ')} cheque, ${chip('EFE')} efectivo.` },
                     { label: 'Cód. Institución', html: `Campo 9 · ${chip('Alfanumérico/4')} o ${chip('/15')}. Con ${chip('CHQ')} o ${chip('EFE')} debe ser ${chip('0017')} (BG). Con ${chip('CTA')} local son 4 dígitos: ver el Anexo 4 del banco.` },
                     { label: 'Tipo Cuenta', html: `Campo 10 · ${chip('CTE')} corriente o ${chip('AHO')} ahorros. Con ${chip('CHQ')} o ${chip('EFE')} no debe ser llenado.` },
-                    { label: 'Nº Cuenta', html: `Campo 11 · En BG son 10 dígitos y se completan con ceros a la izquierda; en otra institución va tal cual, hasta 30. Con ${chip('CHQ')} o ${chip('EFE')} no debe ser llenado.` },
+                    { label: 'Nº Cuenta', html: `Campo 11 · En BG son 10 dígitos y se completan con ceros a la izquierda; en otra institución va tal cual, hasta 30. Con ${chip('CHQ')} o ${chip('EFE')} no debe ser llenado. Con ${chip('CTA')} es también lo que viaja en el campo 5, con el mismo relleno.` },
                     { label: 'Tipo ID', html: `Campo 12 · ${chip('C')} cédula, ${chip('R')} RUC, ${chip('P')} pasaporte.` },
-                    { label: 'Nº ID', html: 'Campo 13 · Cédula 10 dígitos, RUC 13 dígitos, pasaporte hasta 13 caracteres.' },
+                    { label: 'Nº ID', html: `Campo 13 · Cédula 10 dígitos, RUC 13 dígitos, pasaporte hasta 13 caracteres. Con ${chip('CHQ')} o ${chip('EFE')} es también lo que viaja en el campo 5.` },
                     { label: 'Nombre Beneficiario', html: `Campo 14 · ${chip('Alfanumérico/40')}.` },
-                    { label: 'Dirección', html: `Campo 15 · ${chip('Alfanumérico/40')}, opcional.` },
-                    { label: 'Ciudad', html: `Campo 16 · ${chip('Alfanumérico/20')}, opcional.` },
-                    { label: 'Teléfono', html: `Campo 17 · ${chip('Alfanumérico/20')}, opcional.` },
-                    { label: 'Localidad Pago', html: `Campo 18 · Con ${chip('CTA')} va en blanco. Con ${chip('CHQ')} o ${chip('EFE')}: en blanco = cualquier localidad, o ${chip('QUITO')}, ${chip('GUAYAQUIL')}, ${chip('CUENCA')}...` },
-                    { label: 'Referencia', html: `Campo 19 · ${chip('Alfanumérico/200')}: el número de factura. Es lo que se imprime en la notificación al beneficiario.` },
-                    { label: 'Ref. Adicional', html: `Campo 20 · ${chip('Alfanumérico/100')}, opcional. Para avisar por correo, primero el pipe y después la dirección: ${chip('|proveedor@mail.com')}.` }
+                    { label: 'Referencia', html: `Campo 19 · ${chip('Alfanumérico/200')}: el número de factura. Es lo que se imprime en la notificación al beneficiario.` }
                 ],
-                tip: 'Los 20 campos del formato son las 20 columnas de la grilla, en su orden: la línea del archivo es la fila tal cual. Los campos 1, 6 y 3 vienen preseteados en cada fila nueva (PA, USD y el secuencial), pero se pueden editar como cualquier otro.',
-                notice: 'El NN del nombre del archivo se edita abajo, en el campo del nombre: no es un campo del registro, es parte del nombre.'
+                tip: 'La grilla pide 9 de los 20 campos del formato. Los otros los completa el generador al exportar: PA y USD, la cuenta de la empresa, el secuencial (7 dígitos desde 0000001), el código —que copia la cuenta del proveedor con CTA y su identificación en ventanilla— y los opcionales, que viajan vacíos: comprobante, dirección, ciudad, teléfono, localidad de pago y referencia adicional.',
+                notice: 'El archivo no lleva referencia adicional, que es el campo con el que el banco avisa por correo al beneficiario: con este archivo esos correos no salen. La localidad de pago también viaja en blanco, que para el banco significa "cualquier localidad". El NN del nombre del archivo se edita abajo, en el campo del nombre: no es un campo del registro, es parte del nombre.'
             }
         }
     ]
@@ -359,7 +376,7 @@ function renderMetadataFields() {
                 placeholder="${field.placeholder}"
                 value="${escapeHtml(getMetadataInputValue(field))}"
                 ${field.type === 'date' ? `min="${getTomorrowInputDate()}"` : ''}
-                class="${getMetadataInputClass(field, true)}"
+                class="${getMetadataInputClass(field, getMetadataState(field))}"
             >
         </label>
     `).join('');
@@ -432,33 +449,59 @@ function getPendingInputClass() {
     return 'bg-transparent text-slate-900 dark:text-white w-full cell border border-dashed border-slate-300 dark:border-white/20 outline-none font-inherit text-sm transition-all focus:bg-slate-50 dark:focus:bg-white/5';
 }
 
-function getMetadataInputClass(field, isValid) {
-    const dateClass = field.type === 'date' ? 'date-input ' : '';
-    if (!isValid) {
-        return `${dateClass}bg-red-500/10 text-red-600 dark:text-red-200 w-full cell rounded-lg border border-red-500/50 outline-none font-inherit text-sm transition-all placeholder:text-red-400/50`;
-    }
-    return `${dateClass}bg-slate-50 dark:bg-black/20 text-slate-900 dark:text-white w-full p-3 rounded-lg border border-slate-200 dark:border-border outline-none font-inherit text-sm transition-all focus:bg-white dark:focus:bg-white/5`;
+// Los campos generales tienen los mismos tres estados que las celdas de la
+// grilla: válido, pendiente (vacío, el usuario todavía no llegó) y error (tiene
+// un valor que no cumple la regla). Los dos últimos bloquean la descarga por
+// igual, así que el corte entre ambos es puramente visual — pero importa: el
+// campo arranca vacío y pintarlo de rojo apenas se abre la app señala un error
+// que el usuario todavía no cometió.
+function getMetadataState(field) {
+    const value = (currentMetadata[field.id] || '').trim();
+    if (value === '') return 'pending';
+    const cumpleRegla = (!field.rule || field.rule.test(value))
+        && (!field.futureOnly || isFutureCompactDate(value));
+    return cumpleRegla ? 'valid' : 'error';
 }
 
+function getMetadataInputClass(field, state) {
+    const dateClass = field.type === 'date' ? 'date-input ' : '';
+    const base = `${dateClass}w-full p-3 rounded-lg outline-none font-inherit text-sm transition-all`;
+    if (state === 'error') {
+        return `${base} bg-red-500/10 text-red-600 dark:text-red-200 border border-red-500/50 placeholder:text-red-400/50`;
+    }
+    const fondo = 'bg-slate-50 dark:bg-black/20 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-white/5';
+    if (state === 'pending') {
+        return `${base} ${fondo} border border-dashed border-slate-300 dark:border-white/20`;
+    }
+    return `${base} ${fondo} border border-slate-200 dark:border-border`;
+}
+
+// Devuelve el desglose y no un booleano porque validateGrid necesita los dos
+// números por separado: el error de un campo general tiene su propio mensaje, y
+// el pendiente se suma a la cuenta de campos que faltan, que es lo que es.
 function validateMetadata() {
     const gen = getActiveConfig();
-    if (!gen.metadata) return true;
+    const resumen = { hasErrors: false, pending: 0 };
+    if (!gen.metadata) return resumen;
 
-    let isValid = true;
     gen.metadata.forEach(field => {
         const input = generatorFields.querySelector(`[data-meta-id="${field.id}"]`);
         if (!input) return;
 
-        const value = (currentMetadata[field.id] || '').trim();
-        const fieldValid = value !== ''
-            && (!field.rule || field.rule.test(value))
-            && (!field.futureOnly || isFutureCompactDate(value));
-        input.className = getMetadataInputClass(field, fieldValid);
-        input.title = fieldValid ? '' : field.error;
-        if (!fieldValid) isValid = false;
+        const state = getMetadataState(field);
+        input.className = getMetadataInputClass(field, state);
+        if (state === 'valid') {
+            input.title = '';
+        } else if (state === 'pending') {
+            resumen.pending++;
+            input.title = field.error ? `Falta completar: ${field.error}` : 'Falta completar';
+        } else {
+            resumen.hasErrors = true;
+            input.title = field.error || 'Campo inválido';
+        }
     });
 
-    return isValid;
+    return resumen;
 }
 
 function renderHeader() {
@@ -606,17 +649,18 @@ function validateGrid() {
     const gen = getActiveConfig();
     if (!gen.columns) return;
 
-    const metadataValid = validateMetadata();
+    const metadata = validateMetadata();
     let hasErrors = false;
     let hasContent = false;
-    let pendingCount = 0;
+    // Los campos generales que faltan se cuentan con los de la grilla: para el
+    // usuario son lo mismo, campos que tiene que completar antes de descargar.
+    let pendingCount = metadata.pending;
 
     gridData.forEach((row, index) => {
         const tr = gridBody.children[index];
         if (!tr) return;
 
-        const isRowEmpty = Object.values(row).every(val => val.trim() === '');
-        if (isRowEmpty) {
+        if (isRowEmpty(row, gen)) {
             tr.classList.remove('bg-red-500/5');
             return;
         }
@@ -649,9 +693,9 @@ function validateGrid() {
         tr.classList.toggle('bg-red-500/5', !rowValid);
     });
 
-    btnDownload.disabled = hasErrors || pendingCount > 0 || !hasContent || !metadataValid;
-    if (!metadataValid) {
-        statusMessage.textContent = 'Complete los campos generales';
+    btnDownload.disabled = hasErrors || metadata.hasErrors || pendingCount > 0 || !hasContent;
+    if (metadata.hasErrors) {
+        statusMessage.textContent = 'Revisa los campos generales';
         statusMessage.className = 'font-semibold text-error';
     } else if (hasErrors) {
         statusMessage.textContent = 'Hay errores en la tabla';
@@ -688,8 +732,19 @@ function getExportValue(col, row) {
     return col.exportValue ? col.exportValue(value, row) : value;
 }
 
+// Una fila está vacía si lo están las columnas que el generador declara hoy.
+// Mirar `Object.values(row)` contaría también las claves que dejó una versión
+// anterior de la config: al sacar una columna, su valor sigue en lo que hay
+// guardado en localStorage, y una fila que en pantalla se ve vacía quedaría
+// contada como registro — bloqueando la descarga para siempre, porque no hay
+// forma de borrar una fila — o viajaría al archivo como una línea de campos
+// vacíos.
+function isRowEmpty(row, gen = getActiveConfig()) {
+    return (gen.columns || []).every(col => String(row[col.id] || '').trim() === '');
+}
+
 function getNonEmptyRows() {
-    return gridData.filter(row => !Object.values(row).every(val => val.trim() === ''));
+    return gridData.filter(row => !isRowEmpty(row));
 }
 
 function padRight(value, length) {
@@ -862,6 +917,22 @@ function formatTerceroAccount(value, row) {
     return isBancoGuayaquil(row) ? padLeft(value, 10) : value;
 }
 
+// El campo 5 no se carga: el formato lo define como copia de otro campo de la
+// misma línea —con CTA, la cuenta del proveedor; en ventanilla, su
+// identificación—, así que se deriva. Sale con el mismo valor exportado que su
+// campo de origen, ceros a la izquierda de una cuenta de BG incluidos: los dos
+// campos dicen exactamente lo mismo.
+//
+// Ojo con el desborde: el banco declara el campo 5 en Alfanumérico/20 y el 11
+// hasta 30 para otras instituciones, así que una cuenta larga de otro banco sale
+// completa y se pasa del largo del 5. Es una tensión del propio documento del
+// banco; se exporta entera a propósito, porque cortarla en silencio mandaría al
+// archivo un número de cuenta plausible y equivocado. Ver docs/estado.md.
+function formatTerceroCodigo(row, columns) {
+    const origen = isCreditoCuenta(row) ? 'numero_cuenta' : 'numero_id';
+    return getExportValue(findColumn(columns, origen), row);
+}
+
 function downloadText(content, filename) {
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -920,7 +991,7 @@ function updateStats() {
         statusMessage.textContent = '';
         return;
     }
-    const count = gridData.filter(row => !Object.values(row).every(val => val.trim() === '')).length;
+    const count = gridData.filter(row => !isRowEmpty(row, gen)).length;
     rowCountDisplay.textContent = `${count} registros válidos`;
 }
 

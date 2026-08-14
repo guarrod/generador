@@ -65,15 +65,30 @@ separador", con el largo de la tabla, y no un alfanumérico estricto.
 
 ## Lo que la herramienta resuelve sola
 
-Tres campos no se piden en la grilla vacíos sino preseteados, porque el artículo
-los fija o los deriva. Se pueden editar igual:
+La grilla pide 9 de los 20 campos: los que cambian de un beneficiario a otro
+(7, 8, 9, 10, 11, 12, 13, 14 y 19). Los otros 11 los completa el generador al
+exportar, en su posición:
 
-- **Campo 1** viene en `PA`, el único código de orientación que define el
-  artículo.
-- **Campo 6** viene en `USD`, la única moneda que define el artículo.
-- **Campo 3** se numera solo desde 1 en el orden de las filas. Queda editable a
-  propósito: el artículo lo vincula al desglose de rubros de los pagos en
-  ventanilla, y con el número fijo no habría forma de expresarlos.
+| Campo | Con qué se llena | Por qué no se pide |
+| ----- | ---------------- | ------------------ |
+| 1 · Código Orientación | `PA` | Es el único valor que define el artículo |
+| 2 · Cuenta Empresa | El campo general de arriba de la grilla, con ceros a la izquierda hasta 10 | Es la cuenta que se debita: una sola para todo el archivo, no una por línea |
+| 3 · Secuencial Pago | La posición de la línea: 7 dígitos desde `0000001` | Es el orden del archivo. **Ojo:** el artículo lo vincula al desglose de rubros de los pagos en ventanilla; si hay que expresar esos desgloses, vuelve a ser una columna |
+| 4 · Comprobante | En blanco | Opcional |
+| 5 · Código | Con `CTA`, el campo 11 tal como sale (ceros incluidos). Con `CHQ` o `EFE`, el campo 13 | El artículo lo define como copia de otro campo de la misma línea |
+| 6 · Moneda | `USD` | Es la única moneda que define el artículo |
+| 15, 16, 17 · Dirección, Ciudad, Teléfono | En blanco | Opcionales |
+| 18 · Localidad de pago | En blanco | Con `CTA` el artículo la exige en blanco, y en ventanilla en blanco significa "cualquier localidad" |
+| 20 · Referencia Adicional | En blanco | Opcional |
 
-El `NN` del nombre **no es un campo del registro**: es parte del nombre del
-archivo, así que se edita en el campo del nombre, no en la grilla.
+Tres cosas que el artículo deja ver y conviene no perder:
+
+- **El campo 5 puede no entrar en su propio largo.** Está declarado en
+  Alfanumérico/20, pero se deriva del 11, que admite hasta 30 en otra
+  institución. Ver [estado.md](estado.md).
+- **Con el campo 20 en blanco no hay notificación por correo.** Es el único lugar
+  del formato donde va la dirección del beneficiario (`|proveedor@mail.com`), y
+  como es un dato de cada proveedor no se puede reponer desde afuera de la
+  grilla. Ver [estado.md](estado.md).
+- El `NN` del nombre **no es un campo del registro**: es parte del nombre del
+  archivo, así que se edita en el campo del nombre, no en la grilla.

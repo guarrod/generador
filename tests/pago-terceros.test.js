@@ -4,6 +4,11 @@
 // Guayaquil, transcrito en docs/formato-pago-terceros.md. Cada verificación de
 // la línea exportada corresponde a una fila de esa tabla.
 //
+// La grilla pide 9 de los 20 campos; los otros 11 los arma `exportRow`. Por eso
+// las verificaciones de acá abajo se dividen en dos: que la grilla pida lo que
+// hay que decidir, y que la línea siga teniendo las 20 posiciones del formato,
+// con lo mismo en cada una.
+//
 // OJO: el artículo no dice cuál es el separador. La coma es un supuesto
 // heredado del generador oficial del banco — ver docs/estado.md.
 const fs = require('fs');
@@ -12,13 +17,13 @@ const { cargarApp } = require('./harness.js');
 
 // Una orden válida, con crédito en cuenta de Banco Guayaquil.
 const BASE = {
-    codigo_orientacion: 'PA', cuenta_empresa: '1234567', secuencial_pago: '1',
-    comprobante: 'EGR-0012', codigo: '0012345678', moneda: 'USD', valor: '12645.76',
-    forma_pago: 'CTA', codigo_institucion: '0017', tipo_cuenta: 'AHO', numero_cuenta: '1234567',
-    tipo_id: 'C', numero_id: '0912378320', nombre: 'Proveedor S.A.',
-    direccion: '', ciudad: '', telefono: '', localidad_pago: '',
-    referencia: 'FAC-001-002-000001234', referencia_adicional: '',
+    valor: '12645.76', forma_pago: 'CTA', codigo_institucion: '0017', tipo_cuenta: 'AHO',
+    numero_cuenta: '1234567', tipo_id: 'C', numero_id: '0912378320', nombre: 'Proveedor S.A.',
+    referencia: 'FAC-001-002-000001234',
 };
+
+// La cuenta de la empresa es una sola para todo el archivo: campo general.
+const META = { cuenta_empresa: '1234567' };
 
 module.exports = {
     nombre: 'Pago a Terceros · formato oficial de BG',
@@ -28,34 +33,39 @@ module.exports = {
         if (!gen) return saltear('el generador no está en esta entrega');
         const col = id => gen.columns.find(c => c.id === id);
 
-        // ── El formato es la grilla ─────────────────────────────────────────
-        check('20 campos del formato = 20 columnas', gen.columns.length, 20);
-        check('ninguna columna oculta', gen.columns.filter(c => c.hidden).length, 0);
-        check('ningún campo suelto arriba de la grilla', gen.metadata, undefined);
-        check('sin exportRow: la línea es el volcado de la fila', gen.exportRow, undefined);
+        // ── Lo que la grilla pide ───────────────────────────────────────────
+        check('la grilla pide 9 de los 20 campos', gen.columns.length, 9);
+        check('ninguna columna oculta: lo que se ve es lo que se carga', gen.columns.filter(c => c.hidden).length, 0);
         check('las columnas están en el orden del formato', gen.columns.map(c => c.id), [
-            'codigo_orientacion', 'cuenta_empresa', 'secuencial_pago', 'comprobante', 'codigo',
-            'moneda', 'valor', 'forma_pago', 'codigo_institucion', 'tipo_cuenta', 'numero_cuenta',
-            'tipo_id', 'numero_id', 'nombre', 'direccion', 'ciudad', 'telefono', 'localidad_pago',
-            'referencia', 'referencia_adicional',
+            'valor', 'forma_pago', 'codigo_institucion', 'tipo_cuenta', 'numero_cuenta',
+            'tipo_id', 'numero_id', 'nombre', 'referencia',
         ]);
+        // Los campos que el formato fija o deriva ya no se cargan. Si alguno
+        // vuelve a ser columna, su valor deja de salir de exportRow.
+        check('los campos que no se deciden no son columnas',
+            ['codigo_orientacion', 'cuenta_empresa', 'secuencial_pago', 'comprobante', 'codigo',
+                'moneda', 'direccion', 'ciudad', 'telefono', 'localidad_pago',
+                'referencia_adicional'].filter(id => col(id)), []);
+        check('ninguna celda nace preseteada: los preseteos son del exportRow',
+            Object.values(t.fila(gen, {}, 3)).filter(v => v !== ''), []);
 
-        // ── Preseteos por fila ──────────────────────────────────────────────
-        const nueva = t.fila(gen, {}, 0);
-        check('campo 1 preseteado en PA', nueva.codigo_orientacion, 'PA');
-        check('campo 6 preseteado en USD', nueva.moneda, 'USD');
-        check('campo 3 arranca en 1', nueva.secuencial_pago, '1');
-        check('campo 3 sigue el número de fila', t.fila(gen, {}, 4).secuencial_pago, '5');
+        // La cuenta de la empresa es del archivo, no del beneficiario.
+        check('la cuenta de la empresa es campo general', gen.metadata.map(f => f.id), ['cuenta_empresa']);
+        check('y guarda en su propia clave', gen.metadataKey, 'bg_gen_pago_terceros_metadata');
+        const reglaCuenta = gen.metadata[0].rule;
+        check('cuenta de la empresa: hasta 10 dígitos', reglaCuenta.test('1234567'), true);
+        check('cuenta de la empresa: 11 dígitos no', reglaCuenta.test('12345678901'), false);
+        check('cuenta de la empresa: obligatoria', reglaCuenta.test(''), false);
 
         // ── Línea exportada, campo por campo contra la tabla oficial ────────
-        const campos = t.linea(gen, BASE).split(',');
+        const campos = t.linea(gen, BASE, 0, META).split(',');
         check('20 campos por línea', campos.length, 20);
         [
             [1, 'Código Orientación', 'PA'],
             [2, 'Cuenta Empresa, con ceros a la izquierda', '0001234567'],
-            [3, 'Secuencial Pago', '1'],
-            [4, 'Comprobante', 'EGR-0012'],
-            [5, 'Código', '0012345678'],
+            [3, 'Secuencial Pago, 7 dígitos desde 0000001', '0000001'],
+            [4, 'Comprobante, en blanco', ''],
+            [5, 'Código = la cuenta del proveedor, con su relleno', '0001234567'],
             [6, 'Moneda', 'USD'],
             [7, 'Valor: 11 enteros y 2 decimales, sin punto', '0000001264576'],
             [8, 'Forma de Pago', 'CTA'],
@@ -65,27 +75,54 @@ module.exports = {
             [12, 'Tipo ID', 'C'],
             [13, 'Nº ID', '0912378320'],
             [14, 'Nombre del Beneficiario', 'Proveedor S.A.'],
-            [15, 'Dirección', ''],
-            [16, 'Ciudad', ''],
-            [17, 'Teléfono', ''],
-            [18, 'Localidad de pago, en blanco con CTA', ''],
+            [15, 'Dirección, en blanco', ''],
+            [16, 'Ciudad, en blanco', ''],
+            [17, 'Teléfono, en blanco', ''],
+            [18, 'Localidad de pago, en blanco = cualquier localidad', ''],
             [19, 'Referencia', 'FAC-001-002-000001234'],
-            [20, 'Referencia Adicional', ''],
+            // Sin este campo el banco no manda la notificación por correo al
+            // beneficiario: es el único lugar del formato donde va la dirección.
+            [20, 'Referencia Adicional, en blanco', ''],
         ].forEach(([pos, nombre, esperado]) =>
             check(`campo ${String(pos).padStart(2)} · ${nombre}`, campos[pos - 1], esperado));
 
+        // ── Campo 3: la posición de la línea en el archivo ──────────────────
+        // Se numera al exportar, no al crear la fila: las filas vacías se
+        // descartan antes, así que la secuencia nunca sale con huecos.
+        check('secuencial de la línea 5', t.linea(gen, BASE, 4, META).split(',')[2], '0000005');
+        check('secuencial de la línea 1000', t.linea(gen, BASE, 999, META).split(',')[2], '0001000');
+
+        // ── Campo 5: copia de otro campo de la misma línea ──────────────────
+        const codigoDe = (fila, i = 0) => t.linea(gen, { ...BASE, ...fila }, i, META).split(',')[4];
+        check('CTA · el código es la cuenta, con el relleno de BG', codigoDe({ numero_cuenta: '1234567' }), '0001234567');
+        check('CTA · otra institución: la cuenta sin relleno',
+            codigoDe({ codigo_institucion: '0034', numero_cuenta: 'ABC123456789' }), 'ABC123456789');
+        check('CHQ · el código es el Nº de ID', codigoDe({ forma_pago: 'CHQ', tipo_cuenta: '', numero_cuenta: '' }), '0912378320');
+        check('EFE · el código es el Nº de ID',
+            codigoDe({ forma_pago: 'EFE', tipo_cuenta: '', numero_cuenta: '', tipo_id: 'P', numero_id: 'px39582' }), 'PX39582');
+        // Tensión del propio documento del banco: el campo 5 es Alfanumérico/20
+        // y el 11 admite hasta 30 en otra institución. La cuenta larga sale
+        // entera: cortarla en silencio mandaría al archivo un número de cuenta
+        // plausible y equivocado. Ver docs/estado.md.
+        check('cuenta de más de 20 en otro banco: el código NO se trunca',
+            codigoDe({ codigo_institucion: '0034', numero_cuenta: 'A'.repeat(25) }), 'A'.repeat(25));
+
+        // ── El resto de la línea ────────────────────────────────────────────
         // Ventanilla: el artículo exige 10 y 11 vacíos y la institución en 0017.
-        const chq = t.linea(gen, { ...BASE, forma_pago: 'CHQ', tipo_cuenta: '', numero_cuenta: '', localidad_pago: 'quito' }).split(',');
+        const chq = t.linea(gen, { ...BASE, forma_pago: 'CHQ', tipo_cuenta: '', numero_cuenta: '' }, 0, META).split(',');
         check('CHQ · Tipo de Cuenta vacío', chq[9], '');
         check('CHQ · Nº Cuenta vacío', chq[10], '');
-        check('CHQ · Localidad en mayúsculas', chq[17], 'QUITO');
         // Otra institución financiera: la cuenta NO se rellena con ceros.
         check('otro banco · cuenta sin relleno',
-            t.linea(gen, { ...BASE, codigo_institucion: '0034', numero_cuenta: 'ABC123456789' }).split(',')[10], 'ABC123456789');
+            t.linea(gen, { ...BASE, codigo_institucion: '0034', numero_cuenta: 'ABC123456789' }, 0, META).split(',')[10], 'ABC123456789');
         // El monto se normaliza siempre a 13 dígitos.
         [['12645,76', '0000001264576'], ['500', '0000000050000'], ['500.5', '0000000050050']]
             .forEach(([entrada, esperado]) =>
-                check(`valor "${entrada}" → ${esperado}`, t.linea(gen, { ...BASE, valor: entrada }).split(',')[6], esperado));
+                check(`valor "${entrada}" → ${esperado}`, t.linea(gen, { ...BASE, valor: entrada }, 0, META).split(',')[6], esperado));
+        // Sin cuenta de la empresa la descarga está bloqueada por validateMetadata;
+        // esto solo fija qué haría el relleno si alguien la saltara.
+        check('sin cuenta de la empresa el campo 2 sale en ceros',
+            t.linea(gen, BASE, 0, {}).split(',')[1], '0000000000');
 
         // ── Reglas que dependen de otras celdas de la fila ──────────────────
         [
@@ -107,10 +144,10 @@ module.exports = {
             check(nombre, t.app.isCellValid(col(id), valor, fila), esperado));
 
         // "Alfanumérico" en el artículo significa texto, no [A-Za-z0-9]: el campo
-        // 18 ejemplifica con "QUITO, GUAYAQUIL" y el 20 exige un pipe y un correo.
-        check('comprobante con guion', t.app.isCellValid(col('comprobante'), 'EGR-0012', {}), true);
-        check('comprobante con coma rompe el archivo', t.app.isCellValid(col('comprobante'), 'EGR,12', {}), false);
-        check('Ref. Adicional admite pipe y correo', t.app.isCellValid(col('referencia_adicional'), '|proveedor@mail.com', {}), true);
+        // 14 son razones sociales y el 19 lleva guiones.
+        check('nombre con punto y espacios', t.app.isCellValid(col('nombre'), 'Proveedor S.A.', {}), true);
+        check('nombre con coma rompe el archivo', t.app.isCellValid(col('nombre'), 'Proveedor, S.A.', {}), false);
+        check('referencia con guiones', t.app.isCellValid(col('referencia'), 'FAC-001-002-000001234', {}), true);
 
         // ── Nombre del archivo: BENEFICIARIO_AAAAMMDD_NN ────────────────────
         const hoy = t.app.formatDate(new Date());
@@ -138,6 +175,6 @@ module.exports = {
                 .filter(c => !t.app.isCellValid(c, String(fila[c.id] || '').trim(), fila))
                 .map(c => `fila ${i + 1} · ${c.label}`)), []);
         check('el archivo generado es idéntico al esperado',
-            filas.map((fila, i) => t.linea(gen, fila, i)).join('\n') + '\n', esperado);
+            filas.map((fila, i) => t.linea(gen, fila, i, META)).join('\n') + '\n', esperado);
     },
 };

@@ -62,16 +62,52 @@ convierte un error silencioso en uno visible.
 Ninguna regla exige que el monto sea mayor a cero. El formato tampoco lo prohíbe,
 pero una línea de pago por cero es casi siempre un error de carga.
 
-### La cuenta de la empresa se carga por fila y nadie compara entre filas
+### El campo 5 puede no entrar en su propio largo
 
-El formato define la cuenta de la empresa por línea (campo 2), así que es una
-columna más de la grilla. La regla verifica que sean hasta 10 dígitos, pero
-**no** que todas las filas del archivo tengan la misma. Un dedazo en una fila del
-medio arma una orden que debita dos cuentas distintas sin que nada lo marque.
-Vale la pena una advertencia cuando una fila se aparta del resto.
+El campo 5 (Código) no se carga: el artículo lo define como copia de otro campo
+de la misma línea —con `CTA` el número de cuenta del proveedor, en ventanilla su
+identificación— así que el generador lo deriva.
+
+El problema es del propio documento del banco: declara el campo 5 en
+**Alfanumérico/20** y el 11 en **Alfanumérico/30** para cuentas de otra
+institución financiera. Una cuenta de más de 20 caracteres entra en el campo 11 y
+no en el 5.
+
+Hoy sale **completa**, aunque se pase del largo: cortarla mandaría al archivo un
+número de cuenta plausible y equivocado, que es el peor de los dos errores. La
+grilla no lo marca, porque la cuenta que el usuario cargó es válida.
+
+**Cómo cerrarlo:** preguntar al banco qué gana cuando los dos campos no pueden
+decir lo mismo. Mientras tanto es un caso raro —solo con `CTA` en una institución
+que no es BG y una cuenta de más de 20—, pero conviene saberlo antes de que
+aparezca.
 
 ## Decisiones conocidas
 
+- **La grilla de Pago a Terceros pide 9 de los 20 campos.** Los otros 11 los arma
+  `exportRow`: los que el formato fija (1 `PA`, 6 `USD`), los que deriva (3, el
+  secuencial; 5, el código) y los opcionales, que viajan vacíos (4, 15, 16, 17,
+  18 y 20). Las 20 posiciones salen igual. Consecuencias que conviene tener
+  presentes:
+  - **El banco no le avisa por correo al beneficiario.** Ese aviso viaja en el
+    campo 20 (`|proveedor@mail.com`), el único lugar del formato donde va la
+    dirección. Es un dato de cada proveedor, no del archivo, así que —a
+    diferencia de la cuenta de la empresa— no se puede reponer con un campo
+    general: para volver a mandarlos, el campo 20 tiene que ser columna otra vez.
+    Ya pasó una vez: el commit `9eeb199` revirtió un cambio parecido por este
+    motivo.
+  - **La cuenta de la empresa es del archivo, no de la fila.** El formato la
+    define por línea (campo 2), pero es siempre la misma: la que se debita. Al
+    subirla a campo general se carga una vez y desaparece la posibilidad de que
+    un dedazo en una fila del medio arme una orden que debite dos cuentas
+    distintas — antes nada lo marcaba.
+  - **El secuencial ya no se puede editar.** Se numera sobre las líneas del
+    archivo. El artículo lo vincula al desglose de rubros de los pagos en
+    ventanilla; si alguna vez hay que expresar esos desgloses, vuelve a ser una
+    columna.
+  - **La localidad de pago viaja siempre en blanco**, que para el banco es
+    "cualquier localidad". Si hace falta dirigir un pago en ventanilla a una
+    ciudad, vuelve a ser una columna.
 - **Tailwind se carga por CDN** (`cdn.tailwindcss.com`), que la propia
   documentación de Tailwind desaconseja para producción. Sirve para una
   herramienta interna sin build; si esto va a un entorno productivo real, hay que
