@@ -90,7 +90,7 @@ Campos de un generador:
 | `storageKey`, `metadataKey`, `filenameKey` | Claves de `localStorage`, prefijadas `bg_gen_<id>_` |
 | `defaultFilename` | Nombre inicial del archivo, `string` o `() => string` (vía `getDefaultFilename()`) para proponer uno que dependa del día. El campo sigue editable |
 | `filename`        | `(metadata) => string` para derivar el nombre. Deshabilita el campo |
-| `exportType`      | Ausente → CSV separado por comas. `'fixedBatch'` → ancho fijo      |
+| `exportType`      | Ausente → campos separados (ver `exportSeparator` / `exportRow`). `'fixedBatch'` → ancho fijo |
 | `exportRow`       | `(row, index, metadata, columns) => string` cuando la línea no es un volcado 1:1 de las columnas |
 | `metadata`        | Campos generales sobre la grilla (opcional)                        |
 | `columns`         | Columnas de la grilla. Si falta, se muestra "Próximamente"          |
@@ -356,21 +356,31 @@ Las fechas viven en dos representaciones: `AAAAMMDD` compacto en `currentMetadat
 y `AAAA-MM-DD` en el `<input type="date">`. Convertir siempre con
 `compactDateToInput()` / `dateInputToCompact()`.
 
-## Formatos separados por comas (o `exportSeparator`)
+## Formatos de campos separados (`exportSeparator` o `exportRow`)
 
-Pago de Servicios y Pago a Terceros exportan CSV con extensión `.txt`, igual que
-el generador oficial de Banco Guayaquil (que usa `tableToCsv`). Consecuencia:
-**ningún campo de texto puede contener el separador**, o el archivo se
-desalinea. Los campos libres lo previenen con reglas del tipo `/^[^,]{1,40}$/`
-en lugar de contar solo el largo — si agregás un campo de texto, seguí esa
-forma (con el carácter del separador que use ese generador).
+Pago de Servicios y Pago a Terceros exportan campos separados con extensión
+`.txt`. **Cada formato usa un separador distinto y no hay uno "por defecto" que
+sirva:**
 
-Pago a Terceros arma la línea a mano en `exportRow` con `.join(',')`. Pago de
-Servicios no tiene `exportRow`, así que cae en el `join` genérico de
-`exportTxt()`, que usa `gen.exportSeparator` (por defecto `,`) — Pago de
-Servicios lo fija en `;`. Es la única forma de separador declarativa hoy;
-un generador nuevo sin `exportRow` que necesite otro separador solo tiene que
-declarar `exportSeparator`.
+| Generador | Separador | Dónde se declara |
+| --------- | --------- | ---------------- |
+| Pago de Servicios | punto y coma `;` | `exportSeparator: ';'` |
+| Pago a Terceros | tabulación `\t` | el `.join('\t')` de su `exportRow` |
+
+Consecuencia, en los dos: **ningún campo de texto puede contener el separador de
+su formato**, o el archivo se desalinea. Los campos libres lo previenen con
+reglas del tipo `/^[^\t]{1,40}$/` en lugar de contar solo el largo — si agregás
+un campo de texto, seguí esa forma, con el carácter que use ese generador. Al
+revés también importa: cuando Pago a Terceros pasó de coma a tabulación, la coma
+dejó de ser un carácter prohibido, y las reglas tuvieron que dejarla entrar
+—`Proveedor, S.A.` es una razón social como cualquier otra—.
+
+Pago de Servicios no tiene `exportRow`, así que cae en el `join` genérico de
+`exportTxt()`, que usa `gen.exportSeparator` (por defecto `,`). Es la única forma
+declarativa hoy: un generador nuevo sin `exportRow` que necesite otro separador
+solo tiene que declarar `exportSeparator`. Pago a Terceros arma la línea a mano,
+así que el separador vive en su `exportRow` — si algún día lo necesita otro
+formato, ahí conviene pasarle `gen` a `exportRow` en vez de repetir el carácter.
 
 Los campos con largo fijo dentro de la línea (el valor de 13 dígitos de Pago a
 Terceros, la cuenta de empresa de 10) se arman con `padLeft` en `exportValue` o

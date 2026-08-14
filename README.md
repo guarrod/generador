@@ -160,10 +160,11 @@ El nombre del archivo se propone como `BENEFICIARIO_<AAAAMMDD de hoy>_01` y qued
 editable: subí el `NN` para el segundo archivo del día, porque Banca Empresas
 rechaza dos cargas con el mismo nombre en la misma fecha.
 
-> El archivo separa campos por comas, así que **ningún campo de texto puede
-> contener comas**. La grilla las marca como error. Ojo: el separador es un
-> supuesto heredado, no está en la documentación del banco — ver
-> [`docs/estado.md`](docs/estado.md).
+> El archivo separa los campos con **tabulaciones**, el mismo carácter con el que
+> Excel copia una fila. Así que la coma es un carácter válido —`Proveedor, S.A.`
+> se carga sin problema— y lo que ningún campo de texto puede contener es una
+> tabulación. Ojo: el separador no está en la documentación del banco, que no
+> menciona ninguno — ver [`docs/estado.md`](docs/estado.md).
 
 ## Uso
 

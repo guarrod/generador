@@ -23,9 +23,9 @@ citan el número de campo para poder volver acá.
   - Ejemplo: `BENEFICIARIO_20220204_01.TXT`
 - **Una línea por beneficiario**, con los 20 campos en el orden de la tabla.
 
-> **El artículo no dice cuál es el separador de campos.** No menciona coma ni
-> punto y coma, no trae línea de ejemplo y no tiene adjuntos. La coma que usa el
-> generador viene del generador oficial del banco, no de esta fuente. Ver
+> **El artículo no dice cuál es el separador de campos.** No menciona ninguno, no
+> trae línea de ejemplo y no tiene adjuntos. El generador separa con
+> **tabulación**, confirmado por el equipo, no por esta fuente. Ver
 > [estado.md](estado.md).
 
 ## Los 20 campos

@@ -32,18 +32,14 @@ del generador que llega después.
 Cosas que hoy funcionan pero no están confirmadas contra el banco. Si alguna
 resulta falsa, el archivo sale mal aunque la app no marque ningún error.
 
-### El separador de campos no está documentado
+### El separador de Pago de Servicios sigue heredado
 
-El artículo del centro de ayuda de Banco Guayaquil describe los campos de Pago a
-Terceros uno por uno, pero **nunca dice cómo se separan**: no menciona coma ni
-punto y coma, no trae línea de ejemplo y no tiene adjuntos. La coma que usa el
-generador —y toda la regla de "ningún campo de texto puede contener comas"— viene
-del generador oficial del banco, no de esa fuente.
+Pago de Servicios usa punto y coma (`exportSeparator: ';'`), heredado del
+generador anterior y nunca confirmado contra el banco. El de Pago a Terceros ya
+no está en duda: es la tabulación (ver más abajo, en decisiones conocidas).
 
-Pago de Servicios usa punto y coma (`exportSeparator: ';'`), heredado igual.
-
-**Cómo cerrarlo:** conseguir un `.txt` que el banco ya haya aceptado y comparar
-una línea contra la salida de la herramienta.
+**Cómo cerrarlo:** conseguir un `.txt` de Pago de Servicios que el banco ya haya
+aceptado y comparar una línea contra la salida de la herramienta.
 
 ### El relleno trunca en silencio
 
@@ -108,6 +104,18 @@ aparezca.
   - **La localidad de pago viaja siempre en blanco**, que para el banco es
     "cualquier localidad". Si hace falta dirigir un pago en ventanilla a una
     ciudad, vuelve a ser una columna.
+- **Pago a Terceros separa los campos con una tabulación.** El artículo del banco
+  no dice cuál es el separador —no menciona ninguno, no trae línea de ejemplo y
+  no tiene adjuntos—, así que no sale de ahí: lo confirmó el equipo. Antes el
+  generador usaba coma, heredada del generador oficial del banco. Consecuencia
+  directa: **la coma pasó a ser un carácter válido** en los campos de texto, y lo
+  que no puede entrar ahí es una tabulación. Mientras el archivo se separaba por
+  comas, una razón social como `Proveedor, S.A.` no se podía cargar.
+  - Queda a favor que el archivo se separa igual que se pega: `handlePaste()`
+    parte el pegado de Excel por tabulaciones, así que lo que entra y lo que sale
+    usan el mismo carácter.
+  - Si alguna vez aparece un `.txt` aceptado por el banco, vale la pena
+    guardarlo como fixture: cerraría también el de Pago de Servicios.
 - **Los ceros a la izquierda los pone el generador, no el usuario.** Excel se los
   come a todo lo que le parezca un número: una planilla real llega con la cédula
   `0912378320` convertida en `912378320` y el código de institución `0017` en

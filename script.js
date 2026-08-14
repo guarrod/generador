@@ -119,8 +119,11 @@ const APP_CONFIG = {
                     error: 'Campo 13 · Cédula 10 dígitos, RUC 13 dígitos, pasaporte hasta 13. Elige primero el Tipo ID. Si Excel se comió el cero inicial, lo repone el generador',
                     exportValue: (value, row) => formatTerceroId(value, row)
                 },
-                { id: 'nombre', label: 'Nombre Beneficiario', placeholder: 'Proveedor S.A.', rule: /^[^,]{1,40}$/, error: 'Campo 14 · Alfanumérico/40' },
-                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^,]{1,200}$/, error: 'Campo 19 · Alfanumérico/200. Es lo que se imprime como nº de factura en la notificación' }
+                // El separador es la tabulación, así que lo que no puede entrar
+                // en un campo de texto es una tabulación —no una coma—: la coma
+                // es un carácter normal de una razón social ("Proveedor, S.A.").
+                { id: 'nombre', label: 'Nombre Beneficiario', placeholder: 'Proveedor S.A.', rule: /^[^\t]{1,40}$/, error: 'Campo 14 · Alfanumérico/40' },
+                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^\t]{1,200}$/, error: 'Campo 19 · Alfanumérico/200. Es lo que se imprime como nº de factura en la notificación' }
             ],
             // Las 20 posiciones del formato, en orden. Las que la grilla no pide
             // se arman acá; las que sí, salen por getExportValue para no duplicar
@@ -148,7 +151,7 @@ const APP_CONFIG = {
                     '',                                                   // 18 · Localidad de pago
                     campo('referencia'),                                  // 19
                     '',                                                   // 20 · Referencia Adicional
-                ].join(',');
+                ].join('\t');
             },
             recommendations: {
                 items: [

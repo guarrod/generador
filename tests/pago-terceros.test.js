@@ -9,8 +9,8 @@
 // hay que decidir, y que la línea siga teniendo las 20 posiciones del formato,
 // con lo mismo en cada una.
 //
-// OJO: el artículo no dice cuál es el separador. La coma es un supuesto
-// heredado del generador oficial del banco — ver docs/estado.md.
+// El separador es la tabulación. El artículo no lo dice —no menciona ninguno—,
+// así que no sale de ahí: lo confirmó el equipo. Ver docs/estado.md.
 const fs = require('fs');
 const path = require('path');
 const { cargarApp } = require('./harness.js');
@@ -58,7 +58,7 @@ module.exports = {
         check('cuenta de la empresa: obligatoria', reglaCuenta.test(''), false);
 
         // ── Línea exportada, campo por campo contra la tabla oficial ────────
-        const campos = t.linea(gen, BASE, 0, META).split(',');
+        const campos = t.linea(gen, BASE, 0, META).split('\t');
         check('20 campos por línea', campos.length, 20);
         [
             [1, 'Código Orientación', 'PA'],
@@ -89,11 +89,11 @@ module.exports = {
         // ── Campo 3: la posición de la línea en el archivo ──────────────────
         // Se numera al exportar, no al crear la fila: las filas vacías se
         // descartan antes, así que la secuencia nunca sale con huecos.
-        check('secuencial de la línea 5', t.linea(gen, BASE, 4, META).split(',')[2], '0000005');
-        check('secuencial de la línea 1000', t.linea(gen, BASE, 999, META).split(',')[2], '0001000');
+        check('secuencial de la línea 5', t.linea(gen, BASE, 4, META).split('\t')[2], '0000005');
+        check('secuencial de la línea 1000', t.linea(gen, BASE, 999, META).split('\t')[2], '0001000');
 
         // ── Campo 5: copia de otro campo de la misma línea ──────────────────
-        const codigoDe = (fila, i = 0) => t.linea(gen, { ...BASE, ...fila }, i, META).split(',')[4];
+        const codigoDe = (fila, i = 0) => t.linea(gen, { ...BASE, ...fila }, i, META).split('\t')[4];
         check('CTA · el código es la cuenta, con el relleno de BG', codigoDe({ numero_cuenta: '1234567' }), '0001234567');
         check('CTA · otra institución: la cuenta sin relleno',
             codigoDe({ codigo_institucion: '0034', numero_cuenta: 'ABC123456789' }), 'ABC123456789');
@@ -109,20 +109,20 @@ module.exports = {
 
         // ── El resto de la línea ────────────────────────────────────────────
         // Ventanilla: el artículo exige 10 y 11 vacíos y la institución en 0017.
-        const chq = t.linea(gen, { ...BASE, forma_pago: 'CHQ', tipo_cuenta: '', numero_cuenta: '' }, 0, META).split(',');
+        const chq = t.linea(gen, { ...BASE, forma_pago: 'CHQ', tipo_cuenta: '', numero_cuenta: '' }, 0, META).split('\t');
         check('CHQ · Tipo de Cuenta vacío', chq[9], '');
         check('CHQ · Nº Cuenta vacío', chq[10], '');
         // Otra institución financiera: la cuenta NO se rellena con ceros.
         check('otro banco · cuenta sin relleno',
-            t.linea(gen, { ...BASE, codigo_institucion: '0034', numero_cuenta: 'ABC123456789' }, 0, META).split(',')[10], 'ABC123456789');
+            t.linea(gen, { ...BASE, codigo_institucion: '0034', numero_cuenta: 'ABC123456789' }, 0, META).split('\t')[10], 'ABC123456789');
         // El monto se normaliza siempre a 13 dígitos.
         [['12645,76', '0000001264576'], ['500', '0000000050000'], ['500.5', '0000000050050']]
             .forEach(([entrada, esperado]) =>
-                check(`valor "${entrada}" → ${esperado}`, t.linea(gen, { ...BASE, valor: entrada }, 0, META).split(',')[6], esperado));
+                check(`valor "${entrada}" → ${esperado}`, t.linea(gen, { ...BASE, valor: entrada }, 0, META).split('\t')[6], esperado));
         // Sin cuenta de la empresa la descarga está bloqueada por validateMetadata;
         // esto solo fija qué haría el relleno si alguien la saltara.
         check('sin cuenta de la empresa el campo 2 sale en ceros',
-            t.linea(gen, BASE, 0, {}).split(',')[1], '0000000000');
+            t.linea(gen, BASE, 0, {}).split('\t')[1], '0000000000');
 
         // ── Reglas que dependen de otras celdas de la fila ──────────────────
         [
@@ -143,7 +143,7 @@ module.exports = {
         ].forEach(([nombre, id, valor, fila, esperado]) =>
             check(nombre, t.app.isCellValid(col(id), valor, fila), esperado));
 
-        const linea = fila => t.linea(gen, { ...BASE, ...fila }, 0, META).split(',');
+        const linea = fila => t.linea(gen, { ...BASE, ...fila }, 0, META).split('\t');
         const vale = (id, valor, fila) => t.app.isCellValid(col(id), valor, { ...BASE, ...fila });
 
         // ── Mientras Forma de Pago siga vacía, no se juzga lo que depende ───
@@ -195,8 +195,26 @@ module.exports = {
         // "Alfanumérico" en el artículo significa texto, no [A-Za-z0-9]: el campo
         // 14 son razones sociales y el 19 lleva guiones.
         check('nombre con punto y espacios', t.app.isCellValid(col('nombre'), 'Proveedor S.A.', {}), true);
-        check('nombre con coma rompe el archivo', t.app.isCellValid(col('nombre'), 'Proveedor, S.A.', {}), false);
         check('referencia con guiones', t.app.isCellValid(col('referencia'), 'FAC-001-002-000001234', {}), true);
+
+        // ── El separador es la tabulación ───────────────────────────────────
+        // Lo que no puede entrar en un campo de texto es el separador, y ahora
+        // el separador es el tab. La coma es un carácter normal de una razón
+        // social: mientras el archivo se separaba por comas, "Proveedor, S.A."
+        // no se podía cargar.
+        check('la coma ya es un carácter válido en el nombre',
+            t.app.isCellValid(col('nombre'), 'Proveedor, S.A.', {}), true);
+        check('y llega entera al archivo',
+            t.linea(gen, { ...BASE, nombre: 'Proveedor, S.A.' }, 0, META).split('\t')[13], 'Proveedor, S.A.');
+        check('la coma tampoco corta la línea en más campos',
+            t.linea(gen, { ...BASE, nombre: 'Proveedor, S.A.' }, 0, META).split('\t').length, 20);
+        check('una tabulación en el nombre sí rompe el archivo',
+            t.app.isCellValid(col('nombre'), 'Proveedor\tS.A.', {}), false);
+        check('y en la referencia también',
+            t.app.isCellValid(col('referencia'), 'FAC-001\t002', {}), false);
+        check('la línea lleva 19 tabulaciones, una entre cada par de campos',
+            (t.linea(gen, BASE, 0, META).match(/\t/g) || []).length, 19);
+        check('y ninguna coma de separador', t.linea(gen, BASE, 0, META).includes(','), false);
 
         // ── Nombre del archivo: BENEFICIARIO_AAAAMMDD_NN ────────────────────
         const hoy = t.app.formatDate(new Date());
