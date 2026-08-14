@@ -232,7 +232,12 @@ function init() {
 function renderTabs() {
     tabsContainer.innerHTML = APP_CONFIG.generators.map((gen, i) => {
         const isActive = i === activeGeneratorIndex;
-        const activeClass = 'bg-gradient-to-br from-secondary to-[#ec4899] text-white shadow-[0_4px_15px_-3px_rgba(210,0,110,0.4)]';
+        // La pestaña activa va en #160f41. En oscuro ese color es casi el del
+        // fondo de la página (`primary`, #160441), así que ahí lleva además un
+        // borde claro: sin él la pestaña elegida se funde con el fondo y no se
+        // ve cuál está seleccionada. La sombra acompaña al color nuevo — la
+        // anterior era un resplandor rosa del degradado que ya no está.
+        const activeClass = 'bg-[#160f41] text-white border border-transparent dark:border-white/30 shadow-[0_4px_15px_-3px_rgba(22,15,65,0.45)]';
         const inactiveClass = 'bg-white dark:bg-white/5 border border-slate-200 dark:border-border text-slate-500 dark:text-text-muted hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white';
         return `<button class="px-5 py-2.5 rounded-lg font-bold text-sm transition-all ${isActive ? activeClass : inactiveClass}" onclick="switchGenerator(${i})">${gen.label}</button>`;
     }).join('');
