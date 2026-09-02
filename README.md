@@ -88,7 +88,7 @@ Al exportar: `Forma Pago` y `Tipo` se pasan a mayúsculas. Hay un campo **Monto
 Máx** oculto (hasta 7 dígitos) que no se muestra en la grilla: vacío se
 completa con `999999999`; si tiene valor se le agregan los centavos (`00`).
 
-### 2. Pago a Terceros (Cash Management)
+### 2. Pago a Terceros (Pagar por archivo)
 
 Genera el archivo de pagos masivos a proveedores: una línea por beneficiario.
 Sigue el formato publicado por Banco Guayaquil, transcrito campo por campo en
@@ -96,34 +96,56 @@ Sigue el formato publicado por Banco Guayaquil, transcrito campo por campo en
 tenerlo al lado, porque la página del banco no se puede consultar de forma
 automática.
 
-**Los 20 campos del formato son las 20 columnas de la grilla, en su orden**: la
-línea del archivo es la fila tal cual. No hay columnas ocultas ni campos sueltos
-arriba de la tabla, así que lo que se ve es lo que se exporta.
+**La grilla pide 9 de los 20 campos del formato: los que cambian de un
+beneficiario a otro.** Los otros 11 los completa el generador al exportar — el
+formato los fija, los deriva de otro campo de la misma línea o los acepta en
+blanco. Las 20 posiciones salen igual y en su orden: lo que cambia es quién las
+llena.
 
-Tres campos vienen preseteados en cada fila nueva, y se pueden editar igual:
+Arriba de la grilla hay un campo general:
 
-- **Cód. Orientación** en `PA` y **Moneda** en `USD`, los únicos valores que
-  define el formato.
-- **Secuencial**, numerado solo desde 1. Queda editable a propósito: el formato
-  lo vincula al desglose de rubros de los pagos en ventanilla.
+| Campo general | Regla | Obligatorio |
+| ------------- | ----- | ----------- |
+| Cuenta de la empresa | Hasta 10 dígitos; se completa con ceros a la izquierda al exportar | Sí |
+
+Es la cuenta que se debita y es **una sola para todo el archivo**, por eso se
+carga una vez y no en cada fila.
+
+Y estas son las columnas:
 
 | Columna | Regla | Obligatorio |
 | ------- | ----- | ----------- |
-| Cuenta Empresa | Hasta 10 dígitos; se completa con ceros a la izquierda al exportar | Sí |
-| Comprobante | Hasta 20 caracteres, sin comas | No |
-| Código | Hasta 20 caracteres: cuenta del proveedor con `CTA`, identificación en ventanilla | Sí |
 | Valor | Hasta 11 enteros y 2 decimales (`12645.76` → `0000001264576`) | Sí |
 | Forma Pago | `CTA` cuenta, `CHQ` cheque, `EFE` efectivo | Sí |
-| Cód. Institución | 4 o 15 caracteres (`0017` = BG) | Sí |
+| Cód. Institución | 4 o 15 caracteres (`0017` = BG). Si escribís `17`, sale `0017` | Sí |
 | Tipo Cuenta | `CTE` o `AHO` | Solo con `CTA` |
-| Nº Cuenta | BG: hasta 10 dígitos, con ceros a la izquierda. Otros bancos: hasta 30, sin relleno | Solo con `CTA` |
+| Nº Cuenta | BG: hasta 10 dígitos; los ceros de la izquierda los pone el generador. Otros bancos: hasta 30, sin relleno | Solo con `CTA` |
 | Tipo ID | `C` cédula, `R` RUC, `P` pasaporte | Sí |
-| Nº ID | Cédula 10 dígitos, RUC 13, pasaporte hasta 13 | Sí |
+| Nº ID | Cédula 10 dígitos, RUC 13, pasaporte hasta 13. Si falta el cero de la provincia, se repone al exportar | Sí |
 | Nombre Beneficiario | Hasta 40 caracteres | Sí |
-| Dirección · Ciudad · Teléfono | Hasta 40 / 20 / 20 caracteres | No |
-| Localidad Pago | Hasta 20 caracteres; en blanco con `CTA` | No |
 | Referencia | Hasta 200 caracteres: el nº de factura | Sí |
-| Ref. Adicional | Hasta 100 caracteres. Con `\|correo@dominio.com` se notifica al beneficiario | No |
+
+Lo que el generador pone solo, en la posición que le toca:
+
+| Campo del formato | Con qué se llena |
+| ----------------- | ---------------- |
+| 1 · Cód. Orientación | `PA`, el único valor que define el formato |
+| 2 · Cuenta Empresa | El campo general, con ceros a la izquierda hasta 10 dígitos |
+| 3 · Secuencial | La posición de la línea en el archivo: 7 dígitos desde `0000001` |
+| 4 · Comprobante | En blanco |
+| 5 · Código | Con `CTA`, el **Nº Cuenta** de la fila tal como sale en el campo 11 (ceros incluidos). Con `CHQ` o `EFE`, el **Nº ID** |
+| 6 · Moneda | `USD`, la única moneda que define el formato |
+| 15, 16, 17 · Dirección, Ciudad, Teléfono | En blanco |
+| 18 · Localidad Pago | En blanco, que para el banco significa *cualquier localidad* |
+| 20 · Ref. Adicional | En blanco |
+
+> El secuencial se numera sobre las filas que van al archivo, así que una fila
+> vacía en el medio de la grilla no le deja un hueco.
+
+> **El archivo no pide notificación por correo al beneficiario.** Ese aviso viaja
+> en el campo 20 (`|proveedor@mail.com`) y es un dato de cada proveedor, así que
+> fuera de la grilla no hay dónde cargarlo: con el campo en blanco, el banco no
+> manda esos correos. Ver [`docs/estado.md`](docs/estado.md).
 
 Reglas que dependen de la forma de pago, controladas en vivo:
 
@@ -132,14 +154,17 @@ Reglas que dependen de la forma de pago, controladas en vivo:
   ser `0017`.
 - El largo del Nº de ID cambia según el Tipo de ID, que hay que elegir primero.
 
-El nombre del archivo se propone como `BENEFICIARIO_<AAAAMMDD de hoy>_01` y queda
-editable: subí el `NN` para el segundo archivo del día, porque Banca Empresas
-rechaza dos cargas con el mismo nombre en la misma fecha.
+El nombre del archivo lo pone el generador y no se edita —por eso no hay campo
+de nombre en esta pestaña—: `PAGOS_MULTICASH_<AAAAMMDD de hoy>_<##>`, donde el
+`##` arranca en `01` y **sube con cada archivo que bajes en el día**. Banca
+Empresas rechaza dos cargas con el mismo nombre en la misma fecha, así que el
+contador lo lleva la app: al día siguiente vuelve a `01`.
 
-> El archivo separa campos por comas, así que **ningún campo de texto puede
-> contener comas**. La grilla las marca como error. Ojo: el separador es un
-> supuesto heredado, no está en la documentación del banco — ver
-> [`docs/estado.md`](docs/estado.md).
+> El archivo separa los campos con **tabulaciones**, el mismo carácter con el que
+> Excel copia una fila. Así que la coma es un carácter válido —`Proveedor, S.A.`
+> se carga sin problema— y lo que ningún campo de texto puede contener es una
+> tabulación. Ojo: el separador no está en la documentación del banco, que no
+> menciona ninguno — ver [`docs/estado.md`](docs/estado.md).
 
 ### 3. Recaudación Batch (RECAUDOS17_TC)
 
@@ -192,14 +217,27 @@ centavos sin punto (`0000022000`).
 ## Uso
 
 - **Pegar desde Excel**: copiá el rango y pegá directamente en la primera celda.
-  Reconoce columnas separadas por tabulaciones y crea las filas que falten.
+  Reconoce columnas separadas por tabulaciones y crea las filas que falten. Las
+  columnas de opción fija (Forma Pago, Tipo Cuenta, Tipo ID) son desplegables, y
+  un desplegable no recibe el pegado: si querés pegar solo esa columna suelta,
+  empezá el pegado en una columna de texto.
 - **Validación en vivo**: las celdas con un valor que no cumple la regla se
   marcan en rojo; las que solo están **pendientes** (obligatorias y todavía
   vacías) llevan un borde punteado, para que empezar a llenar una fila no la
   pinte entera de rojo. En los dos casos el detalle aparece al pasar el mouse, y
-  el pie de la grilla indica cuántos campos faltan. El botón de descarga se
-  habilita solo cuando no queda nada rojo ni pendiente y hay al menos un
-  registro.
+  el pie de la grilla indica cuántos campos faltan.
+- **Lista de errores**: al pie del panel aparece cada error con su fila, el
+  campo, el valor cargado y el motivo, así no hay que ir a buscar la celda roja a
+  lo ancho de la grilla.
+- **Descargar valida**: el botón está siempre habilitado. Al presionarlo se
+  revisa todo el formulario; si algo falta o está mal, no se descarga nada y la
+  lista de abajo pasa a mostrar también **los campos que faltan completar** —y no
+  solo los que están mal— para que se vea de una todo lo que separa del archivo.
+  Antes del primer intento no se muestra nada de eso: un campo todavía vacío no
+  es un error.
+- **Los ceros a la izquierda no se cargan a mano**: Excel se los come al copiar,
+  así que el generador los repone al exportar (`1234567` → `0001234567`,
+  `912378320` → `0912378320`, `17` → `0017`).
 - **Guardado automático**: todo queda en `localStorage` del navegador (datos,
   campos generales, nombre de archivo, tema y estado del panel lateral). Se
   recupera al volver a abrir.
@@ -227,6 +265,6 @@ validación y recomendaciones. La grilla, la validación y la persistencia salen
 de ahí. Ver [`ARCHITECTURE.md`](ARCHITECTURE.md) para el detalle de cada campo
 de la config.
 
-Ojo: en esta entrega no hay barra de pestañas, así que un segundo objeto en el
-array quedaría sin forma de llegar — la app siempre muestra el primero. Reponer
-la navegación es parte de la entrega 2; ver [`docs/estado.md`](docs/estado.md).
+La barra de pestañas sale del mismo array, así que el generador nuevo aparece
+solo. Ver [`docs/estado.md`](docs/estado.md) antes de simplificar la
+arquitectura multi-generador: la entrega 3 se apoya en ella.

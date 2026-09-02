@@ -111,19 +111,36 @@
                                 <i data-lucide="plus"></i> Añadir Fila
                             </button>
                             <div class="h-6 w-px bg-slate-200 dark:bg-border"></div>
-                            <div
+                            <!-- Se esconde entero cuando el generador deriva el
+                                 nombre del archivo: ver loadGenerator(). -->
+                            <div id="filename-field"
                                 class="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-border rounded-lg text-slate-500 dark:text-text-muted h-[46px]">
                                 <i data-lucide="file-text" class="w-4 h-4"></i>
                                 <input type="text" id="input-filename" placeholder="Nombre..." value="carga_masiva"
-                                    class="bg-transparent border-none text-slate-900 dark:text-white text-sm font-inherit outline-none w-[120px]">
+                                    class="bg-transparent border-none text-slate-900 dark:text-white text-sm font-inherit outline-none w-[200px]">
                                 <span class="text-xs">.txt</span>
                             </div>
+                            <!-- Siempre habilitado: las validaciones corren al
+                                 presionar (exportTxt) y lo que bloquea la
+                                 descarga se explica en la lista de abajo. -->
                             <button id="btn-download"
-                                class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-secondary to-[#ec4899] rounded-lg font-bold text-sm cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-5px_rgba(210,0,110,0.5)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:grayscale-[0.5] text-white"
-                                disabled>
+                                class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-secondary to-[#ec4899] rounded-lg font-bold text-sm cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-5px_rgba(210,0,110,0.5)] hover:brightness-110 text-white">
                                 <i data-lucide="download"></i> Descargar TXT
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Lista de lo que bloquea la descarga. La arma renderErrorList() en
+                         cada validación y se oculta sola cuando no queda nada: solo entra
+                         en pantalla cuando hay algo que corregir. El color de la cabecera
+                         y el de cada fila los reasigna el render según el estado. -->
+                    <div id="error-panel"
+                        class="hidden overflow-hidden rounded-lg border border-slate-200 dark:border-white/10">
+                        <div id="error-panel-head" class="flex items-center gap-2 px-5 py-4 border-b">
+                            <i data-lucide="alert-triangle" class="w-[18px] h-[18px] shrink-0"></i>
+                            <h2 id="error-panel-title" class="text-[0.95rem] font-bold tracking-tight"></h2>
+                        </div>
+                        <ul id="error-list" class="divide-y divide-slate-200 dark:divide-white/10"></ul>
                     </div>
                 </section>
 
