@@ -244,7 +244,6 @@ const btnDownload = document.getElementById('btn-download');
 const btnThemeToggle = document.getElementById('theme-toggle');
 const btnSidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarPanel = document.getElementById('sidebar-panel');
-const layoutWrapper = document.getElementById('layout-wrapper');
 const rowCountDisplay = document.getElementById('row-count');
 const statusMessage = document.getElementById('status-message');
 const footerActions = document.getElementById('footer-actions');
@@ -271,6 +270,8 @@ function init() {
     lucide.createIcons();
     renderTabs();
     loadGenerator();
+    // Después de renderTabs(): antes la barra de pestañas está vacía y mide 0.
+    syncSidebarTop();
 }
 
 function renderTabs() {
@@ -347,24 +348,45 @@ function applyTheme(theme) {
     currentTheme = theme;
 }
 
+// Tiene que coincidir con el `min-width` del media query de #sidebar-panel en
+// styles.css: por debajo, el panel no flota, va apilado al pie del principal.
+const SIDEBAR_BREAKPOINT = 1024;
+
+// El panel flota por encima del contenido (ver styles.css), así que mostrarlo y
+// esconderlo ya no reacomoda nada: el panel principal ocupa el ancho completo
+// siempre. Es lo que le devuelve a la grilla los 320px que antes se llevaba la
+// columna de la derecha.
+//
+// Flotando (`>= SIDEBAR_BREAKPOINT`) el panel se abre y cierra con
+// `sidebar-closed`: sigue montado y fuera del flujo, así que puede
+// transicionar (fade + slide desde el borde derecho) en los dos sentidos.
+// Apilado (mobile) usa `hidden` en cambio — ahí el panel empuja contenido, y
+// sin `display: none` dejaría un hueco vacío cuando está "cerrado".
 function applySidebarState(visible) {
-    if (visible) {
+    const floating = window.innerWidth >= SIDEBAR_BREAKPOINT;
+    if (floating) {
         sidebarPanel.classList.remove('hidden');
-        sidebarPanel.style.width = '320px';
-        sidebarPanel.style.opacity = '1';
-        layoutWrapper.classList.add('lg:grid-cols-[1fr_320px]');
-        layoutWrapper.classList.remove('lg:grid-cols-1');
+        sidebarPanel.classList.toggle('sidebar-closed', !visible);
+        if (visible) syncSidebarTop();
     } else {
-        sidebarPanel.classList.add('hidden');
-        sidebarPanel.style.width = '0';
-        sidebarPanel.style.opacity = '0';
-        layoutWrapper.classList.remove('lg:grid-cols-[1fr_320px]');
-        layoutWrapper.classList.add('lg:grid-cols-1');
+        sidebarPanel.classList.toggle('hidden', !visible);
+        sidebarPanel.classList.remove('sidebar-closed');
     }
     btnSidebarToggle.className = getSidebarToggleClass(visible);
     btnSidebarToggle.setAttribute('aria-expanded', visible);
     localStorage.setItem(APP_CONFIG.sidebarKey, visible);
     isSidebarVisible = visible;
+}
+
+// Dónde arranca el panel flotante, medido en vivo. Estando fijo, el CSS no
+// tiene contra qué calcularlo: la distancia al borde superior es la altura de
+// la cabecera, que cambia con el zoom del navegador y no se puede escribir a
+// mano sin que el panel se despegue en cuanto crezca. Queda a la altura del
+// borde superior de la barra de pestañas, no del panel principal —más arriba—.
+function syncSidebarTop() {
+    const PADDING_MAIN = 48;   // <main> py-12: separación entre cabecera y pestañas
+    const alto = document.querySelector('header').offsetHeight + PADDING_MAIN;
+    document.documentElement.style.setProperty('--sidebar-top', `${alto}px`);
 }
 
 // El botón dice siempre "Ayuda": el estado del panel se muestra con el énfasis
@@ -1381,6 +1403,9 @@ function loadFromStorage() {
 // Event Listeners
 btnThemeToggle.addEventListener('click', () => applyTheme(currentTheme === 'dark' ? 'light' : 'dark'));
 btnSidebarToggle.addEventListener('click', toggleSidebar);
+// Reaplica el estado completo, no solo la posición: un resize puede cruzar
+// SIDEBAR_BREAKPOINT y ahí cambia también qué clase controla mostrar/ocultar.
+window.addEventListener('resize', () => applySidebarState(isSidebarVisible));
 btnAddRow.addEventListener('click', () => addRows(1));
 btnReset.addEventListener('click', resetGrid);
 btnDownload.addEventListener('click', exportTxt);

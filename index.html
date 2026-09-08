@@ -77,7 +77,9 @@
 
             <div id="tabs-container" class="flex gap-2 mb-6 flex-wrap"></div>
 
-            <div id="layout-wrapper" class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 items-start transition-all duration-300">
+            <!-- Una sola columna a cualquier ancho: el panel de ayuda flota por
+                 encima (ver styles.css) y ya no le come 320px a la grilla. -->
+            <div id="layout-wrapper" class="grid grid-cols-1 gap-8 items-start transition-all duration-300">
                 <section
                     class="bg-white dark:bg-white/5 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-xl shadow-xl dark:shadow-2xl p-7 flex flex-col gap-8">
                     <div class="mb-2">
@@ -144,23 +146,35 @@
                     </div>
                 </section>
 
-                <aside id="sidebar-panel" class="flex flex-col gap-6 transition-all duration-300 overflow-hidden">
-                    <div
+                <aside id="sidebar-panel" class="flex flex-col gap-6">
+                    <!-- La tarjeta con fondo, borde y esquinas redondeadas — la que
+                         se ve. #sidebar-panel, más afuera, es un envoltorio sin
+                         estilo propio que solo posiciona. -->
+                    <div id="sidebar-card"
                         class="bg-white dark:bg-white/5 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-xl p-7 shadow-lg dark:shadow-none w-[320px]">
-                        <h3 class="text-[1.1rem] font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-3">
-                            <i data-lucide="info" class="text-secondary"></i> Recomendaciones
-                        </h3>
-                        <div id="sidebar-content" class="flex flex-col gap-5"></div>
-                        <div id="sidebar-tip" class="mt-6 pt-6 border-t border-slate-200 dark:border-border flex gap-3 hidden">
-                            <i data-lucide="zap" class="w-5 h-5 text-amber-500 dark:text-amber-400 shrink-0"></i>
-                            <p id="sidebar-tip-text" class="text-[0.85rem] text-slate-500 dark:text-text-muted italic"></p>
-                        </div>
-                        <!-- Aviso importante: va al final y con más peso visual que el tip -->
-                        <div id="sidebar-notice"
-                            class="mt-6 flex gap-3 rounded-lg border border-secondary/40 bg-secondary/5 dark:bg-secondary/10 p-4 hidden">
-                            <i data-lucide="alert-circle" class="w-5 h-5 text-secondary shrink-0"></i>
-                            <p id="sidebar-notice-text"
-                                class="text-[0.85rem] font-semibold text-slate-700 dark:text-white leading-relaxed"></p>
+                        <!-- El scroll largo vive acá adentro, no en #sidebar-card:
+                             el margen a la derecha de este div es lo que separa la
+                             barra del borde de la tarjeta. Si el scroll quedara en
+                             #sidebar-card, la barra saldría pegada al borde —el
+                             padding de la tarjeta no la corre: el navegador la
+                             dibuja siempre pegada al borde del elemento con el
+                             scroll, sin importar cuánto padding tenga. -->
+                        <div id="sidebar-scroll">
+                            <h3 class="text-[1.1rem] font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-3">
+                                <i data-lucide="info" class="text-secondary"></i> Recomendaciones
+                            </h3>
+                            <div id="sidebar-content" class="flex flex-col gap-5"></div>
+                            <div id="sidebar-tip" class="mt-6 pt-6 border-t border-slate-200 dark:border-border flex gap-3 hidden">
+                                <i data-lucide="zap" class="w-5 h-5 text-amber-500 dark:text-amber-400 shrink-0"></i>
+                                <p id="sidebar-tip-text" class="text-[0.85rem] text-slate-500 dark:text-text-muted italic"></p>
+                            </div>
+                            <!-- Aviso importante: va al final y con más peso visual que el tip -->
+                            <div id="sidebar-notice"
+                                class="mt-6 flex gap-3 rounded-lg border border-secondary/40 bg-secondary/5 dark:bg-secondary/10 p-4 hidden">
+                                <i data-lucide="alert-circle" class="w-5 h-5 text-secondary shrink-0"></i>
+                                <p id="sidebar-notice-text"
+                                    class="text-[0.85rem] font-semibold text-slate-700 dark:text-white leading-relaxed"></p>
+                            </div>
                         </div>
                     </div>
                 </aside>
