@@ -61,7 +61,7 @@ const APP_CONFIG = {
             id: 'pago_terceros',
             label: 'Pago a Terceros',
             title: 'Generador de Pago a Terceros (Pagar por archivo)',
-            description: 'Cargá lo que cambia en cada beneficiario. Los campos que el formato fija o deriva los completa el generador al exportar.',
+            description: 'Carga lo que cambia en cada beneficiario. Los campos que el formato fija o deriva los completa el generador al exportar.',
             storageKey: 'bg_gen_pago_terceros_data',
             metadataKey: 'bg_gen_pago_terceros_metadata',
             secuenciaKey: 'bg_gen_pago_terceros_secuencia',
@@ -166,9 +166,9 @@ const APP_CONFIG = {
                     { label: 'Cuenta de la empresa', html: `Campo 2 · ${chip('Numérico/10')}. La cuenta que se debita. Es una sola para todo el archivo: por eso va arriba de la grilla y no en cada fila. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar: ${chip('1234567')} sale ${chip('0001234567')}.` },
                     { label: 'Valor', html: `Campo 7 · ${chip('Numérico/13')}: 11 enteros y 2 decimales. ${chip('12645.76')} se exporta ${chip('0000001264576')}.` },
                     { label: 'Forma Pago', html: `Campo 8 · ${chip('CTA')} crédito a cuenta, ${chip('CHQ')} cheque, ${chip('EFE')} efectivo.` },
-                    { label: 'Cód. Institución', html: `Campo 9 · ${chip('Alfanumérico/4')} o ${chip('/15')}. Con ${chip('CHQ')} o ${chip('EFE')} debe ser ${chip('0017')} (BG). Con ${chip('CTA')} local son 4 dígitos: ver el Anexo 4 del banco. Escribilo como te quedó en la planilla: ${chip('17')} sale ${chip('0017')}.` },
+                    { label: 'Cód. Institución', html: `Campo 9 · ${chip('Alfanumérico/4')} o ${chip('/15')}. Con ${chip('CHQ')} o ${chip('EFE')} debe ser ${chip('0017')} (BG). Con ${chip('CTA')} local son 4 dígitos: ver el Anexo 4 del banco. Escríbelo como te quedó en la planilla: ${chip('17')} sale ${chip('0017')}.` },
                     { label: 'Tipo Cuenta', html: `Campo 10 · ${chip('CTE')} corriente o ${chip('AHO')} ahorros. Con ${chip('CHQ')} o ${chip('EFE')} no debe ser llenado.` },
-                    { label: 'Nº Cuenta', html: `Campo 11 · En BG son 10 dígitos: cargá la cuenta como la tenés y los ceros de la izquierda los pone el generador (${chip('1234567')} sale ${chip('0001234567')}). En otra institución va tal cual, hasta 30. Con ${chip('CHQ')} o ${chip('EFE')} no debe ser llenado. Con ${chip('CTA')} es también lo que viaja en el campo 5, con el mismo relleno.` },
+                    { label: 'Nº Cuenta', html: `Campo 11 · En BG son 10 dígitos: carga la cuenta como la tienes y los ceros de la izquierda los pone el generador (${chip('1234567')} sale ${chip('0001234567')}). En otra institución va tal cual, hasta 30. Con ${chip('CHQ')} o ${chip('EFE')} no debe ser llenado. Con ${chip('CTA')} es también lo que viaja en el campo 5, con el mismo relleno.` },
                     { label: 'Tipo ID', html: `Campo 12 · ${chip('C')} cédula, ${chip('R')} RUC, ${chip('P')} pasaporte.` },
                     { label: 'Nº ID', html: `Campo 13 · Cédula 10 dígitos, RUC 13 dígitos, pasaporte hasta 13 caracteres. Si Excel se comió el cero de la provincia, el generador lo repone: ${chip('912378320')} sale ${chip('0912378320')}. Con ${chip('CHQ')} o ${chip('EFE')} es también lo que viaja en el campo 5.` },
                     { label: 'Nombre Beneficiario', html: `Campo 14 · ${chip('Alfanumérico/40')}.` },
@@ -182,7 +182,7 @@ const APP_CONFIG = {
             id: 'recaudacion_batch',
             label: 'Recaudación Batch',
             title: 'Generador Batch de Recaudación',
-            description: 'Genera el archivo TXT de Cobros o Facturación (RECAUDOS17_TC) con registros de 124 caracteres.',
+            description: 'Genera el archivo TXT (RECAUDOS17_TC) para que puedas recaudar por los canales de BG',
             storageKey: 'bg_gen_recaudacion_batch_data',
             metadataKey: 'bg_gen_recaudacion_batch_metadata',
             filename: metadata => `REM_${formatDate(new Date())}_${(metadata.codigo_empresa || 'EMPRESA').trim().toUpperCase() || 'EMPRESA'}`,
@@ -193,7 +193,7 @@ const APP_CONFIG = {
             totalColumn: 'valor_cobrar',
             metadata: [
                 { id: 'fecha_ejecucion', label: 'Fecha de ejecución', placeholder: 'Seleccione una fecha', type: 'date', futureOnly: true, rule: /^\d{8}$/, error: 'Seleccione una fecha futura' },
-                { id: 'codigo_empresa', label: 'Código de empresa', placeholder: 'EFA', rule: /^[a-zA-Z0-9]{1,5}$/, error: 'Máx 5 caracteres alfanuméricos' }
+                { id: 'codigo_empresa', label: 'Código de empresa', placeholder: 'EFA', rule: /^[a-zA-Z0-9]{1,3}$/, error: 'Máx 3 caracteres alfanuméricos' }
             ],
             columns: [
                 { id: 'tipo_registro', label: 'Tipo Registro', placeholder: 'Nueva Deuda', options: ['Nueva Deuda', 'Actualizar Deuda'], rule: /^(Nueva Deuda|Actualizar Deuda)$/i, error: 'Nueva Deuda o Actualizar Deuda' },
@@ -209,7 +209,7 @@ const APP_CONFIG = {
             recommendations: {
                 items: [
                     { label: 'Archivo', html: `Salida fija de ${chip('124')} caracteres por línea con cabecera ${chip('01REC')}.` },
-                    { label: 'Empresa', html: 'Código entregado por Banco Guayaquil, hasta 5 caracteres.' },
+                    { label: 'Empresa', html: 'Código entregado por Banco Guayaquil, hasta 3 caracteres.' },
                     { label: 'Montos', html: 'Ingrese valores con 2 decimales. Al exportar se convierten a centavos y se completan con ceros a la izquierda.' },
                     { label: 'Periodo', html: `Formato ${chip('AAAAMM')}. Ejemplo: ${chip('202504')}.` },
                     { label: 'Filas', html: 'Solo se exportan registros con datos.' }

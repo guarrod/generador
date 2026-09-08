@@ -175,7 +175,9 @@ Antes de la grilla se piden dos campos generales:
 
 - **Fecha de ejecución** — tiene que ser futura (el selector no deja elegir hoy
   ni fechas pasadas).
-- **Código de empresa** — el que entrega Banco Guayaquil, hasta 5 caracteres.
+- **Código de empresa** — el que entrega Banco Guayaquil, hasta 3 caracteres. En el
+  archivo viaja en un campo de 5 (posición 11, ver tabla de cabecera abajo);
+  el sobrante se completa con espacios a la derecha.
 
 El nombre del archivo se arma solo: `REM_<AAAAMMDD de hoy>_<CÓDIGO EMPRESA>.txt`.
 

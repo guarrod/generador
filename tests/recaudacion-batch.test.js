@@ -113,7 +113,11 @@ module.exports = {
                 t.app.isCellValid(col(id), valor, {}), esperado));
 
         // ── Campos generales ────────────────────────────────────────────────
+        const meta = id => gen.metadata.find(m => m.id === id);
         check('la fecha de ejecución tiene que ser futura', gen.metadata.find(m => m.id === 'fecha_ejecucion').futureOnly, true);
+        [['codigo_empresa', 'EFA', true], ['codigo_empresa', 'EFAA', false]].forEach(([id, valor, esperado]) =>
+            check(`${meta(id).label} · "${valor}" ${esperado ? 'vale' : 'no vale'}`,
+                t.app.isCellValid(meta(id), valor, {}), esperado));
         check('el nombre del archivo lleva el código de empresa',
             gen.filename({ codigo_empresa: 'efa' }), `REM_${hoy}_EFA`);
     },
