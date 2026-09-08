@@ -6,51 +6,49 @@ incluidas las que conviene revisar.
 
 ## Alcance de esta entrega
 
-La app trae **un solo generador, Pago de Servicios**, y no tiene barra de
-pestañas. La arquitectura sí es multi-generador: `APP_CONFIG.generators` en
-[`script.js`](../script.js) es un array y todo el render es genérico sobre él.
-Ver [`ARCHITECTURE.md`](../ARCHITECTURE.md).
+Los tres generadores —**Pago de Servicios**, **Pago a Terceros** y **Recaudación
+Batch**— con la barra de pestañas. Cada uno guarda sus datos por separado en
+`localStorage`. Con esto se completa el plan de entregas.
 
-## Lo que viene después
+El formato de Pago a Terceros está transcrito campo por campo en
+[formato-pago-terceros.md](formato-pago-terceros.md), porque la página del banco
+no se puede consultar de forma automática.
 
-Las entregas siguientes agregan un generador cada una. Conviene saberlo ahora
-porque condiciona qué no hay que simplificar:
+## Cómo se llegó hasta acá
 
 | Entrega | Contenido |
 | ------- | --------- |
-| 1 (esta) | Pago de Servicios, sin pestañas |
-| 2 | Pago a Terceros (Cash Management). **Vuelve la barra de pestañas** |
-| 3 | Recaudación Batch (RECAUDOS17_TC), formato de ancho fijo de 124 caracteres |
+| 1 | Pago de Servicios, sin pestañas |
+| 2 | + Pago a Terceros (Cash Management). Vuelve la barra de pestañas |
+| 3 (esta) | + Recaudación Batch (RECAUDOS17_TC), ancho fijo de 124 caracteres |
 
-**No colapsen el array de generadores a un objeto suelto, ni saquen
-`getActiveConfig()`.** Parece código de más para un solo formato, pero es lo que
-hace que la entrega 2 sea agregar un objeto y no reescribir el render. Por la
-misma razón quedan en el árbol algunos helpers sin llamar
-(`formatTerceroAmount`, `formatTerceroAccount`, `isVentanilla`, `findColumn`):
-son de los generadores que llegan después.
+Las tres se hicieron **sin tocar el motor**: cada una agregó un objeto a
+`APP_CONFIG.generators`. Si aparece un formato nuevo que no entra en la config,
+la salida es extender la config con una propiedad declarativa, no ramificar el
+render con `if (gen.id === '...')`.
 
-La barra de pestañas se saca y se repone con un diff chico y ya conocido:
-`#tabs-container` en el markup, `renderTabs()` y `switchGenerator()` en el
-script, la clave `activeGeneratorKey`, y `activeGeneratorIndex` que vuelve a ser
-`let`.
+## Lo que no se puede romper en Recaudación Batch
+
+Es el único formato de ancho fijo: **cada línea tiene que medir exactamente 124
+caracteres**. Si un tramo cambia de largo, el banco lee corridos todos los campos
+que vienen después y **en la pantalla no se nota nada**. `buildBatchHeader()` y
+`buildBatchDetail()` arman la línea como un array de tramos que se concatena: si
+tocan uno, hay que volver a sumar los largos y ajustar el relleno final. La suite
+verifica la longitud y la posición de cada tramo, no solo el contenido.
 
 ## Supuestos abiertos
 
 Cosas que hoy funcionan pero no están confirmadas contra el banco. Si alguna
 resulta falsa, el archivo sale mal aunque la app no marque ningún error.
 
-### El separador de campos no está documentado
+### El separador de Pago de Servicios sigue heredado
 
-El artículo del centro de ayuda de Banco Guayaquil describe los campos de Pago a
-Terceros uno por uno, pero **nunca dice cómo se separan**: no menciona coma ni
-punto y coma, no trae línea de ejemplo y no tiene adjuntos. La coma que usa el
-generador —y toda la regla de "ningún campo de texto puede contener comas"— viene
-del generador oficial del banco, no de esa fuente.
+Pago de Servicios usa punto y coma (`exportSeparator: ';'`), heredado del
+generador anterior y nunca confirmado contra el banco. El de Pago a Terceros ya
+no está en duda: es la tabulación (ver más abajo, en decisiones conocidas).
 
-Pago de Servicios usa punto y coma (`exportSeparator: ';'`), heredado igual.
-
-**Cómo cerrarlo:** conseguir un `.txt` que el banco ya haya aceptado y comparar
-una línea contra la salida de la herramienta.
+**Cómo cerrarlo:** conseguir un `.txt` de Pago de Servicios que el banco ya haya
+aceptado y comparar una línea contra la salida de la herramienta.
 
 ### El relleno trunca en silencio
 
@@ -69,8 +67,101 @@ convierte un error silencioso en uno visible.
 Ninguna regla exige que el monto sea mayor a cero. El formato tampoco lo prohíbe,
 pero una línea de pago por cero es casi siempre un error de carga.
 
+### El campo 5 puede no entrar en su propio largo
+
+El campo 5 (Código) no se carga: el artículo lo define como copia de otro campo
+de la misma línea —con `CTA` el número de cuenta del proveedor, en ventanilla su
+identificación— así que el generador lo deriva.
+
+El problema es del propio documento del banco: declara el campo 5 en
+**Alfanumérico/20** y el 11 en **Alfanumérico/30** para cuentas de otra
+institución financiera. Una cuenta de más de 20 caracteres entra en el campo 11 y
+no en el 5.
+
+Hoy sale **completa**, aunque se pase del largo: cortarla mandaría al archivo un
+número de cuenta plausible y equivocado, que es el peor de los dos errores. La
+grilla no lo marca, porque la cuenta que el usuario cargó es válida.
+
+**Cómo cerrarlo:** preguntar al banco qué gana cuando los dos campos no pueden
+decir lo mismo. Mientras tanto es un caso raro —solo con `CTA` en una institución
+que no es BG y una cuenta de más de 20—, pero conviene saberlo antes de que
+aparezca.
+
 ## Decisiones conocidas
 
+- **La grilla de Pago a Terceros pide 9 de los 20 campos.** Los otros 11 los arma
+  `exportRow`: los que el formato fija (1 `PA`, 6 `USD`), los que deriva (3, el
+  secuencial; 5, el código) y los opcionales, que viajan vacíos (4, 15, 16, 17,
+  18 y 20). Las 20 posiciones salen igual. Consecuencias que conviene tener
+  presentes:
+  - **El banco no le avisa por correo al beneficiario.** Ese aviso viaja en el
+    campo 20 (`|proveedor@mail.com`), el único lugar del formato donde va la
+    dirección. Es un dato de cada proveedor, no del archivo, así que —a
+    diferencia de la cuenta de la empresa— no se puede reponer con un campo
+    general: para volver a mandarlos, el campo 20 tiene que ser columna otra vez.
+    Ya pasó una vez: el commit `9eeb199` revirtió un cambio parecido por este
+    motivo.
+  - **La cuenta de la empresa es del archivo, no de la fila.** El formato la
+    define por línea (campo 2), pero es siempre la misma: la que se debita. Al
+    subirla a campo general se carga una vez y desaparece la posibilidad de que
+    un dedazo en una fila del medio arme una orden que debite dos cuentas
+    distintas — antes nada lo marcaba.
+  - **El secuencial ya no se puede editar.** Se numera sobre las líneas del
+    archivo. El artículo lo vincula al desglose de rubros de los pagos en
+    ventanilla; si alguna vez hay que expresar esos desgloses, vuelve a ser una
+    columna.
+  - **La localidad de pago viaja siempre en blanco**, que para el banco es
+    "cualquier localidad". Si hace falta dirigir un pago en ventanilla a una
+    ciudad, vuelve a ser una columna.
+- **El archivo de Pago a Terceros se llama `PAGOS_MULTICASH_AAAAMMDD_##.txt`.**
+  El artículo del banco documenta otro nombre —`BENEFICIARIO_AAAAMMDD_NN.TXT`—,
+  así que es el segundo punto donde lo que el banco pide en la práctica no
+  coincide con lo que dice el artículo: lo confirmó el equipo, como el
+  separador. El campo del nombre ya no se muestra, porque no hay nada que
+  editar.
+  - **El `##` lo lleva la app**: sube uno por cada archivo bajado en el día y
+    vuelve a `01` al día siguiente. Antes ese número se subía a mano en el campo
+    del nombre, y olvidarse costaba una carga rechazada — Banca Empresas no
+    acepta dos archivos con el mismo nombre en la misma fecha.
+  - El contador **sobrevive al botón Resetear**, a propósito: cuenta archivos que
+    ya salieron, y volver a `01` después de un reset armaría justo el nombre
+    repetido que el banco rechaza.
+- **Pago a Terceros separa los campos con una tabulación.** El artículo del banco
+  no dice cuál es el separador —no menciona ninguno, no trae línea de ejemplo y
+  no tiene adjuntos—, así que no sale de ahí: lo confirmó el equipo. Antes el
+  generador usaba coma, heredada del generador oficial del banco. Consecuencia
+  directa: **la coma pasó a ser un carácter válido** en los campos de texto, y lo
+  que no puede entrar ahí es una tabulación. Mientras el archivo se separaba por
+  comas, una razón social como `Proveedor, S.A.` no se podía cargar.
+  - Queda a favor que el archivo se separa igual que se pega: `handlePaste()`
+    parte el pegado de Excel por tabulaciones, así que lo que entra y lo que sale
+    usan el mismo carácter.
+  - Si alguna vez aparece un `.txt` aceptado por el banco, vale la pena
+    guardarlo como fixture: cerraría también el de Pago de Servicios.
+- **Los ceros a la izquierda los pone el generador, no el usuario.** Excel se los
+  come a todo lo que le parezca un número: una planilla real llega con la cédula
+  `0912378320` convertida en `912378320` y el código de institución `0017` en
+  `17`. Las reglas aceptan el valor sin ceros y el relleno pasa al exportar, así
+  que el archivo sale igual y nadie tiene que corregir la planilla a mano. Dos
+  límites que conviene tener presentes:
+  - **Completa, no arregla.** La cédula acepta 9 o 10 dígitos —lo que falta es el
+    cero de la provincia— pero una de 8 se sigue marcando en rojo. Rellenar
+    cualquier cosa mandaría al archivo una identificación plausible y
+    equivocada, que es el peor de los dos errores.
+  - **Solo se rellena lo que es todo dígitos.** Un código de institución
+    alfanumérico de menos de 4 caracteres sigue siendo inválido: no hay forma de
+    saber si le faltan ceros o está mal cargado.
+- **Los errores se listan al pie del panel.** Además de pintar la celda de rojo,
+  la app lista abajo cada error con su fila, su campo, el valor y el motivo. Es
+  lo que evita tener que buscar la celda roja a lo ancho de una grilla que se
+  desplaza.
+- **El botón de descarga no se deshabilita: valida al presionarlo.** Si algo
+  bloquea, no baja el archivo y la lista pasa a incluir también los campos que
+  faltan completar. Antes de ese primer intento solo se listan los errores: un
+  campo todavía vacío no es un error del usuario, y recibirlo con una lista de
+  reclamos apenas abre la app es peor que no decirle nada. La contra de esta
+  decisión es que ya no se ve de un vistazo si el archivo está listo sin
+  presionar; para eso sigue el mensaje de estado al lado del botón.
 - **Tailwind se carga por CDN** (`cdn.tailwindcss.com`), que la propia
   documentación de Tailwind desaconseja para producción. Sirve para una
   herramienta interna sin build; si esto va a un entorno productivo real, hay que

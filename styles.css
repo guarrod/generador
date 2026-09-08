@@ -62,13 +62,29 @@ body {
 
 /*  2. Que la barra SE VEA. Antes estaba oculta a propósito, pero sin barra no
        hay ninguna señal de que haya más columnas a la derecha: el usuario ve la
-       grilla cortada y no sabe que puede seguir. */
-.overflow-x-auto {
+       grilla cortada y no sabe que puede seguir.
+
+   El mismo tratamiento —fina, sin pista visible, del color del tema— vale para
+   el scroll vertical de #sidebar-scroll: es donde vive el scroll de contenido
+   más largo que la pantalla, la barra nativa del sistema (ancha, con flechas,
+   gris siempre) desentona con una tarjeta flotante y con blur. El scroll va en
+   `#sidebar-scroll` —un `div` sin estilo propio, metido adentro de la tarjeta
+   `#sidebar-card`— y no en la tarjeta ni en `#sidebar-panel` (el `aside` que
+   envuelve todo): el navegador dibuja la barra siempre pegada al borde del
+   elemento que tiene el scroll, sin importar su padding, así que la única
+   forma de separarla del borde de la tarjeta es que el que scrollea sea un
+   div más chico que la tarjeta —ver el margen en el bloque de
+   `#sidebar-scroll`, más abajo—. Comparten todo menos el grosor: `height`
+   mueve el grosor de una barra horizontal, `width` el de una vertical, así que
+   esa regla no se puede combinar. */
+.overflow-x-auto,
+#sidebar-scroll {
     scrollbar-width: thin;
     scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
 }
 
-.dark .overflow-x-auto {
+.dark .overflow-x-auto,
+.dark #sidebar-scroll {
     scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
@@ -76,29 +92,159 @@ body {
     height: 10px;
 }
 
-.overflow-x-auto::-webkit-scrollbar-track {
+#sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track,
+#sidebar-scroll::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.overflow-x-auto::-webkit-scrollbar-thumb {
+.overflow-x-auto::-webkit-scrollbar-thumb,
+#sidebar-scroll::-webkit-scrollbar-thumb {
     background-color: rgba(15, 23, 42, 0.25);
     border-radius: 999px;
     border: 2px solid transparent;
     background-clip: content-box;
 }
 
-.dark .overflow-x-auto::-webkit-scrollbar-thumb {
+.dark .overflow-x-auto::-webkit-scrollbar-thumb,
+.dark #sidebar-scroll::-webkit-scrollbar-thumb {
     background-color: rgba(255, 255, 255, 0.25);
 }
 
-.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+#sidebar-scroll::-webkit-scrollbar-thumb:hover {
     background-color: var(--secondary);
 }
 
-.dark .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+.dark .overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.dark #sidebar-scroll::-webkit-scrollbar-thumb:hover {
     background-color: var(--secondary);
+}
+
+/* Achica el padding derecho de la tarjeta —28px por el `p-7` de Tailwind, como
+   los otros tres lados— a 5px. Se suma al `margin-right` de #sidebar-scroll:
+   entre el borde de la tarjeta y la barra de scroll quedan 10px, no 5. */
+#sidebar-card {
+    padding-right: 5px;
 }
 
 .cell{
     padding: 8px;
+}
+
+/* ── Celdas de conjunto cerrado (Forma Pago, Tipo Cuenta, Tipo ID) ──────────
+   Son un <select>, no un input. El estilo va por selector de tipo y no dentro
+   de getBaseInputClass() a propósito: la validación reasigna la clase entera
+   del control en cada tecleo —`cell` es lo único que sobrevive a los tres
+   estados—, así que cualquier clase propia del select se perdería al validar.
+
+   `appearance: none` saca la flecha nativa, que en Windows viene con su propio
+   fondo gris y rompe la celda transparente. La de acá abajo es la misma que
+   dibuja Lucide, en SVG embebido: no hay red en juego. */
+select.cell {
+    appearance: none;
+    cursor: pointer;
+    padding-right: 26px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 13px;
+}
+
+.dark select.cell {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* La lista desplegada la pinta el sistema operativo, no la celda: sin esto, en
+   tema oscuro salen opciones blancas sobre blanco en Windows. */
+select.cell option {
+    background-color: #ffffff;
+    color: #0f172a;
+}
+
+.dark select.cell option {
+    background-color: var(--primary);
+    color: var(--text-main);
+}
+
+/* ── El panel de ayuda flota, no ocupa columna ──────────────────────────────
+   Antes era la segunda columna de un grid `1fr 320px`: esos 320px salían del
+   ancho de la grilla, que es justo lo que escasea en los formatos anchos (Pago
+   a Terceros son 20 columnas). Con el panel flotando, la tabla dispone del
+   ancho completo del contenedor y el desplazamiento horizontal arranca mucho
+   más tarde — o no arranca.
+
+   Queda casi pegado al borde derecho de la **ventana** (`right: 5px`, no una
+   función del ancho del contenedor), a la altura del borde superior de la
+   barra de pestañas —más arriba que el panel principal, que empieza más
+   abajo—. `--sidebar-top` lo calcula syncSidebarTop() porque depende de la
+   altura de la cabecera, que cambia con el zoom del navegador y no se puede
+   escribir a mano sin que se despegue en cuanto crezca.
+
+   Antes `right` seguía al contenedor de 1400px (`max(2rem, calc(50% -
+   668px))`), que por debajo de esos 1400px da casi lo mismo que `5px` —así que
+   ahí no cambia nada— pero por encima crece con la ventana: en una ventana de
+   1920px el panel quedaba a 292px del borde, bien metido encima de la propia
+   grilla que se supone que le devolvió el ancho completo. Clavado al borde de
+   la ventana en cambio, el margen que sobra fuera del contenedor de 1400px lo
+   absorbe el panel en vez de la grilla, y esa área crece con la ventana: a
+   1920px la superposición baja a unos 35px, contra los 320px de antes.
+
+   Entre 1024px y 1400px de ventana sigue solapando lo mismo que siempre: ahí
+   el contenedor ocupa toda la ventana y no hay margen que absorber.
+
+   Solo desde `lg`: por debajo de 1024px el grid ya es de una columna y el panel
+   va apilado al pie, que es donde tiene que seguir yendo. Flotando taparía la
+   pantalla entera.
+
+   El scroll de contenido largo (`max-height` + `overflow-y`) va en
+   `#sidebar-scroll`, no acá: `#sidebar-panel` no tiene fondo ni borde propios,
+   así que si el scroll viviera en el `aside` la barra caería en el margen
+   vacío fuera de la tarjeta redondeada. Con el límite adentro de la tarjeta,
+   `#sidebar-panel` no necesita `height` ni `max-height`: se achica solo hasta
+   lo que mida su única hija. */
+
+/* La transición vive fuera del media query porque también corre en el estado
+   apilado (mobile): ahí no se anima nada porque JS nunca agrega
+   `sidebar-closed` por debajo de 1024px (usa `hidden`, que no transiciona),
+   así que esta regla no tiene efecto hasta que el panel flota. */
+#sidebar-panel {
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+@media (min-width: 1024px) {
+    #sidebar-panel {
+        position: fixed;
+        top: var(--sidebar-top, 132px);
+        right: 5px;
+        /* Debajo de la cabecera (z-50), que es sticky y tiene que pasarle por
+           encima al hacer scroll. */
+        z-index: 40;
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    /* Un panel más alto que la pantalla se desplaza por dentro: flotando no hay
+       scroll de página que lo alcance. `margin-right` separa la barra del
+       borde de la tarjeta 5px — el `padding-right` de la tarjeta no sirve para
+       esto, porque el navegador dibuja la barra pegada al borde de quien tiene
+       el scroll, no del padding que le sobra alrededor. */
+    #sidebar-scroll {
+        max-height: calc(100vh - var(--sidebar-top, 132px) - 2rem);
+        overflow-y: auto;
+        margin-right: 5px;
+    }
+
+    /* Cerrado: transparente y corrido hacia la derecha, de donde "entra" al
+       abrir. `pointer-events: none` en vez de `display: none` — el panel sigue
+       montado (flotando, fuera del flujo, no empuja nada) así que puede
+       transicionar en los dos sentidos en lugar de aparecer de golpe. */
+    #sidebar-panel.sidebar-closed {
+        opacity: 0;
+        transform: translateX(24px);
+        pointer-events: none;
+    }
 }
