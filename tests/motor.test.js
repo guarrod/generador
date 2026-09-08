@@ -415,5 +415,19 @@ module.exports = {
         check('formatAmountDisplay con coma decimal (pegado o guardado)', app.formatAmountDisplay('12645,76'), '12,645.76');
         check('formatAmountDisplay entero grande', app.formatAmountDisplay('1234567'), '1,234,567');
         check('formatAmountDisplay caso de recaudacion-batch.test.js', app.formatAmountDisplay('1500,50'), '1,500.50');
+
+        // ── getColumnTotal: el pie de un generador que declara totalColumn ───
+        // Reusa formatBatchAmount a propósito —la misma cuenta que arma
+        // buildBatchHeader para el archivo—: lo que se ve en pantalla tiene que
+        // ser lo que sale en el .txt, no una suma aparte que puede desalinearse.
+        // Sin `totalColumn` en la config, o sin filas, no hay nada que mostrar.
+        const CON_TOTAL = { totalColumn: 'monto' };
+        check('sin totalColumn no hay nada que sumar', app.getColumnTotal({}, [{ monto: '150.00' }]), '');
+        check('sin filas no hay total que mostrar', app.getColumnTotal(CON_TOTAL, []), '');
+        check('suma dos filas', app.getColumnTotal(CON_TOTAL, [{ monto: '150.00' }, { monto: '50.00' }]), '200.00');
+        check('la suma agrupa de miles si hace falta',
+            app.getColumnTotal(CON_TOTAL, [{ monto: '1500.50' }, { monto: '2000.25' }]), '3,500.75');
+        check('una fila sin el valor cargado suma cero',
+            app.getColumnTotal(CON_TOTAL, [{ monto: '150.00' }, { monto: '' }]), '150.00');
     },
 };

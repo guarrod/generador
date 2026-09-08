@@ -187,6 +187,10 @@ const APP_CONFIG = {
             metadataKey: 'bg_gen_recaudacion_batch_metadata',
             filename: metadata => `REM_${formatDate(new Date())}_${(metadata.codigo_empresa || 'EMPRESA').trim().toUpperCase() || 'EMPRESA'}`,
             exportType: 'fixedBatch',
+            // El pie de la grilla suma esta columna (ver updateStats /
+            // getColumnTotal) con la misma cuenta que va al campo "Total a
+            // cobrar" de la cabecera del archivo (buildBatchHeader).
+            totalColumn: 'valor_cobrar',
             metadata: [
                 { id: 'fecha_ejecucion', label: 'Fecha de ejecución', placeholder: 'Seleccione una fecha', type: 'date', futureOnly: true, rule: /^\d{8}$/, error: 'Seleccione una fecha futura' },
                 { id: 'codigo_empresa', label: 'Código de empresa', placeholder: 'EFA', rule: /^[a-zA-Z0-9]{1,5}$/, error: 'Máx 5 caracteres alfanuméricos' }
@@ -245,6 +249,7 @@ const btnThemeToggle = document.getElementById('theme-toggle');
 const btnSidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarPanel = document.getElementById('sidebar-panel');
 const rowCountDisplay = document.getElementById('row-count');
+const totalDisplay = document.getElementById('total-display');
 const statusMessage = document.getElementById('status-message');
 const footerActions = document.getElementById('footer-actions');
 const errorPanel = document.getElementById('error-panel');
@@ -1268,6 +1273,18 @@ function formatBatchAmount(value) {
     return cleanValue === '' ? '0000000000' : padLeft(cleanValue.replace(/[.,]/g, ''), 10);
 }
 
+// El total que se muestra en el pie de la grilla cuando el generador declara
+// `totalColumn` (ver APP_CONFIG.generators y updateStats). Suma en centavos
+// con formatBatchAmount a propósito: es la misma cuenta que arma
+// buildBatchHeader para el archivo, así que lo que se ve en pantalla es lo
+// que sale en el .txt, no una suma aparte que se puede desalinear si algo
+// cambia. Sin `totalColumn`, o sin filas para sumar, no hay nada que mostrar.
+function getColumnTotal(gen, rows) {
+    if (!gen.totalColumn || rows.length === 0) return '';
+    const total = rows.reduce((suma, fila) => suma + BigInt(formatBatchAmount(fila[gen.totalColumn])), 0n);
+    return groupThousands(digitsToAmount(total.toString()));
+}
+
 function buildBatchHeader(rows) {
     const today = formatDate(new Date());
     const companyCode = padRight((currentMetadata.codigo_empresa || '').trim().toUpperCase(), 5);
@@ -1497,10 +1514,17 @@ function updateStats() {
     if (!gen.columns) {
         rowCountDisplay.textContent = '';
         statusMessage.textContent = '';
+        totalDisplay.textContent = '';
         return;
     }
-    const count = gridData.filter(row => !isRowEmpty(row, gen)).length;
-    rowCountDisplay.textContent = `${count} registros válidos`;
+    const nonEmptyRows = gridData.filter(row => !isRowEmpty(row, gen));
+    rowCountDisplay.textContent = `${nonEmptyRows.length} registros válidos`;
+
+    // Solo lo declara Recaudación Batch hoy (ver APP_CONFIG.generators), y
+    // solo mientras haya algo que sumar: en un generador nuevo, sin filas
+    // cargadas, mostrar "Total: 0.00" es ruido, no información.
+    const total = getColumnTotal(gen, nonEmptyRows);
+    totalDisplay.textContent = total ? `Total a cobrar: $${total}` : '';
 }
 
 function saveToStorage() {
