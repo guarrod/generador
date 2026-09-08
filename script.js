@@ -77,7 +77,7 @@ const APP_CONFIG = {
                 { id: 'cuenta_empresa', label: 'Cuenta de la empresa', placeholder: '1234567', rule: /^\d{1,10}$/, error: 'Campo 2 · Numérico/10. La cuenta que se debita, la misma para todo el archivo. Si tiene menos de 10 dígitos se completa con ceros a la izquierda al exportar' }
             ],
             columns: [
-                { id: 'valor', label: 'Valor', placeholder: '12645.76', rule: /^\d{1,11}([.,]\d{1,2})?$/, error: 'Campo 7 · Numérico/13: 11 enteros y 2 decimales', exportValue: (value, row) => formatTerceroAmount(value), width: 'w-28' },
+                { id: 'valor', label: 'Valor', placeholder: '12645.76', rule: /^\d{1,11}([.,]\d{1,2})?$/, error: 'Campo 7 · Numérico/13: 11 enteros y 2 decimales', exportValue: (value, row) => formatTerceroAmount(value), width: 'w-28', isAmount: true },
                 { id: 'forma_pago', label: 'Forma Pago', placeholder: 'CTA', options: ['CTA', 'CHQ', 'EFE'], rule: /^(CTA|CHQ|EFE)$/i, error: 'Campo 8 · CTA crédito a cuenta, CHQ cheque, EFE efectivo', exportValue: value => value.toUpperCase(), width: 'w-28' },
                 {
                     // Sin `options`: la lista de instituciones es el Anexo 4 del
@@ -195,9 +195,9 @@ const APP_CONFIG = {
                 { id: 'tipo_registro', label: 'Tipo Registro', placeholder: 'Nueva Deuda', options: ['Nueva Deuda', 'Actualizar Deuda'], rule: /^(Nueva Deuda|Actualizar Deuda)$/i, error: 'Nueva Deuda o Actualizar Deuda' },
                 { id: 'codigo_cliente', label: 'Código Cliente', placeholder: '123456789', rule: /^[a-zA-Z0-9]{1,15}$/, error: 'Máx 15 caracteres alfanuméricos' },
                 { id: 'nombre_cliente', label: 'Nombre Cliente', placeholder: 'Usuario Prueba', rule: /^.{1,40}$/, error: 'Máx 40 caracteres' },
-                { id: 'valor_cobrar', label: 'Valor a Cobrar', placeholder: '220.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Ingrese un monto con 2 decimales. Ej: 220.00' },
-                { id: 'valor_minimo', label: 'Valor Mínimo', placeholder: '50.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Vacío o monto con 2 decimales. Ej: 50.00', optional: true, defaultExport: '0000000000' },
-                { id: 'valor_retencion', label: 'Valor Retención', placeholder: '0.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Vacío o monto con 2 decimales. Ej: 0.00', optional: true, defaultExport: '0000000000' },
+                { id: 'valor_cobrar', label: 'Valor a Cobrar', placeholder: '220.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Ingrese un monto con 2 decimales. Ej: 220.00', isAmount: true },
+                { id: 'valor_minimo', label: 'Valor Mínimo', placeholder: '50.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Vacío o monto con 2 decimales. Ej: 50.00', optional: true, defaultExport: '0000000000', isAmount: true },
+                { id: 'valor_retencion', label: 'Valor Retención', placeholder: '0.00', rule: /^\d{1,8}([.,]\d{2})$/, error: 'Vacío o monto con 2 decimales. Ej: 0.00', optional: true, defaultExport: '0000000000', isAmount: true },
                 { id: 'referencia', label: 'Referencia', placeholder: 'PRUEBA DE PAGO', rule: /^.{0,15}$/, error: 'Máx 15 caracteres', optional: true },
                 { id: 'periodo', label: 'Periodo', placeholder: 'AAAAMM', rule: /^\d{6}$/, error: 'Debe tener formato AAAAMM' },
                 { id: 'secuencia', label: 'Secuencia', placeholder: 'Unica Deuda', options: ['Unica Deuda', 'Segunda Deuda', 'Tercera Deuda', 'Cuarta Deuda'], rule: /^(Unica Deuda|Segunda Deuda|Tercera Deuda|Cuarta Deuda)$/i, error: 'Seleccione una secuencia válida' }
@@ -661,7 +661,11 @@ function createCellInput(col, value) {
     const input = document.createElement('input');
     input.type = 'text';
     input.placeholder = col.placeholder;
-    input.value = value;
+    // Con isAmount, lo que se ve difiere de lo que guarda gridData (ver
+    // "Autoformateo en vivo de montos" más abajo): acá se agrupa con comas de
+    // miles el valor tal como llega, pegado o cargado con coma decimal
+    // incluido.
+    input.value = col.isAmount ? formatAmountDisplay(value) : value;
     return input;
 }
 
@@ -722,7 +726,14 @@ function renderGrid() {
             // Un <select> dispara `input` igual que un campo de texto, así que
             // los dos controles se escuchan igual. Pegar, en cambio, es solo del
             // input: un <select> no recibe el evento.
-            control.addEventListener('input', (e) => updateCell(rowIndex, col.id, e.target.value));
+            //
+            // isAmount reemplaza el tecleo por el estilo calculadora: el
+            // `keydown` es quien decide qué entra, e `input` queda solo como
+            // red de contención (ver "Autoformateo en vivo de montos").
+            control.addEventListener('input', col.isAmount
+                ? (e) => handleAmountInput(e, rowIndex, col)
+                : (e) => updateCell(rowIndex, col.id, e.target.value));
+            if (col.isAmount) control.addEventListener('keydown', (e) => handleAmountKeydown(e, rowIndex, col));
             if (!col.options) control.addEventListener('paste', handlePaste);
 
             td.appendChild(control);
@@ -739,6 +750,58 @@ function updateCell(rowIndex, colId, value) {
     saveToStorage();
     validateGrid();
     updateStats();
+}
+
+// Aplica una cinta de dígitos nueva: la guarda en el propio input (es la
+// única fuente de verdad de "qué se tipeó" — ver handleAmountKeydown),
+// recalcula el monto y lo deja en gridData sin comas, y muestra la versión
+// agrupada con el cursor siempre al final —no hay "mitad del número" en un
+// campo que se llena como una cinta de calculadora—.
+function aplicarDigitosMonto(input, rowIndex, col, digitos) {
+    input.dataset.centavos = digitos;
+    const limpio = digitos === '' ? '' : digitsToAmount(digitos);
+    input.value = limpio === '' ? '' : groupThousands(limpio);
+    input.setSelectionRange(input.value.length, input.value.length);
+    updateCell(rowIndex, col.id, limpio);
+}
+
+// `keydown` de una celda de monto: cada dígito se agrega al final de la cinta
+// tipeada y Backspace/Delete sacan el último —da lo mismo dónde esté el
+// cursor, como en una calculadora—. Cualquier otro caracter (letras, `.`, `,`)
+// no inserta nada: el punto decimal lo pone digitsToAmount solo.
+//
+// `input.dataset.centavos` es undefined la primera vez que se toca la celda
+// en esta sesión (createCellInput no lo inicializa): se arranca a partir de
+// lo que ya se ve, así que seguir tipeando sobre un valor pegado o cargado
+// también empuja dígitos en vez de arrancar de cero.
+function handleAmountKeydown(e, rowIndex, col) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return; // atajos: copiar, pegar, etc.
+    const input = e.target;
+    if (input.dataset.centavos === undefined) input.dataset.centavos = input.value.replace(/\D/g, '');
+
+    if (/^\d$/.test(e.key)) {
+        e.preventDefault();
+        aplicarDigitosMonto(input, rowIndex, col, input.dataset.centavos + e.key);
+        return;
+    }
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        aplicarDigitosMonto(input, rowIndex, col, input.dataset.centavos.slice(0, -1));
+        return;
+    }
+    // Bloquea cualquier otro caracter de un solo símbolo para que no se
+    // inserte suelto en el medio del valor formateado. Las teclas de
+    // navegación (flechas, Tab...) tienen nombres de más de un caracter y
+    // pasan de largo, sin efecto porque el cursor no cambia cómo se edita.
+    if (e.key.length === 1) e.preventDefault();
+}
+
+// Red de contención para lo que no pasa por handleAmountKeydown —Cortar,
+// soltar texto arrastrado— y sí dispara `input` de forma nativa: resincroniza
+// tomando lo que haya quedado en pantalla como si fuera la cinta de dígitos.
+function handleAmountInput(e, rowIndex, col) {
+    const input = e.target;
+    aplicarDigitosMonto(input, rowIndex, col, input.value.replace(/\D/g, ''));
 }
 
 function handlePaste(e) {
@@ -765,8 +828,14 @@ function handlePaste(e) {
 
         cells.forEach((cellValue, j) => {
             const targetColIndex = startColIndex + j;
-            if (visibleColumns[targetColIndex]) {
-                gridData[targetRowIndex][visibleColumns[targetColIndex].id] = cellValue.trim();
+            const columna = visibleColumns[targetColIndex];
+            if (columna) {
+                // Una celda de Excel con formato de miles pega "1,500.00": sin
+                // normalizeAmount, la regla lo rechaza porque no distingue el
+                // separador de miles del decimal (ver normalizeAmount).
+                gridData[targetRowIndex][columna.id] = columna.isAmount
+                    ? normalizeAmount(cellValue.trim())
+                    : cellValue.trim();
             }
         });
     });
@@ -1030,6 +1099,64 @@ function padRight(value, length) {
 function padLeft(value, length) {
     return String(value || '').slice(0, length).padStart(length, '0');
 }
+
+// ── Autoformateo en vivo de montos ──────────────────────────────────────────
+// `gridData` sigue guardando el valor sin comas de siempre —dígitos y un punto
+// decimal—, que es lo único que validan las reglas y consumen
+// formatTerceroAmount/formatBatchAmount. El agrupado con comas es solo lo que
+// se ve en el <input>: lo aplican createCellInput y los handlers de abajo,
+// nunca se guarda.
+//
+// El tecleo es estilo calculadora/POS: cada dígito entra por los centavos y
+// empuja lo anterior hacia la izquierda —no hay que tipear el punto—. Por eso
+// lo único que se rastrea por celda es la cinta de dígitos tal como se fue
+// tipeando (en `input.dataset.centavos`, ver handleAmountKeydown): de ahí sale
+// siempre un monto con exactamente 2 decimales, que es además lo que exige la
+// regla de los tres campos de Batch.
+
+// El núcleo puro: cinta de dígitos → monto con 2 decimales. Los ceros de más a
+// la izquierda no cuentan —"00123" es lo mismo que "123"—, sea porque el
+// usuario los tipeó de más o porque quedaron de un relleno previo.
+function digitsToAmount(digitos) {
+    const relleno = digitos.padStart(3, '0');
+    const entera = relleno.slice(0, -2).replace(/^0+(?=\d)/, '');
+    const decimales = relleno.slice(-2);
+    return `${entera}.${decimales}`;
+}
+
+// Agrupa la parte entera de a tres desde la derecha, para mostrar el
+// resultado de digitsToAmount con separador de miles.
+function groupThousands(clean) {
+    const punto = clean.indexOf('.');
+    const entera = punto === -1 ? clean : clean.slice(0, punto);
+    const resto = punto === -1 ? '' : clean.slice(punto);
+    return entera.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + resto;
+}
+
+// Lo que se guarda en `gridData` cuando el monto llega ya armado desde afuera
+// —pegado, o cargado de una sesión anterior— en vez de tecleado dígito a
+// dígito. Reconoce el último punto o coma seguido de 1 o 2 dígitos al final
+// como el separador decimal, sea "." o ","; cualquier otro punto o coma antes
+// de ese solo puede ser un separador de miles, y se descarta.
+//
+// Sin esto, un monto pegado desde una celda de Excel con formato de miles
+// (`1,500.00`) no pasa la regla de validación: la regla no distingue "el
+// separador de miles" del decimal, solo espera uno solo en todo el valor.
+function normalizeAmount(raw) {
+    const str = String(raw || '').trim();
+    if (str === '') return '';
+    const conDecimal = str.match(/^(.*?)[.,](\d{1,2})$/);
+    const entera = (conDecimal ? conDecimal[1] : str).replace(/\D/g, '');
+    return conDecimal ? `${entera}.${conDecimal[2]}` : entera;
+}
+
+// Para el valor "en reposo": al crear la celda (carga inicial, después de
+// pegar, cambio de generador, reset). Agrupa de miles el resultado ya
+// normalizado.
+function formatAmountDisplay(raw) {
+    return groupThousands(normalizeAmount(raw));
+}
+
 
 function formatDate(date) {
     const year = date.getFullYear();

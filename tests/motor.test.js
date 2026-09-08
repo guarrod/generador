@@ -365,5 +365,55 @@ module.exports = {
         check('cada generador guarda en su propia clave', claves.length, new Set(claves).size);
         check('los ids son únicos', generadores.length, new Set(generadores.map(g => g.id)).size);
         check('todas las claves llevan prefijo propio', claves.every(k => k.startsWith('bg_gen_')), true);
+
+        // ── Autoformateo en vivo de montos: estilo calculadora ───────────────
+        // Las celdas de monto (Valor en Terceros; Valor a Cobrar, Valor Mínimo y
+        // Valor Retención en Batch) se cargan como en una calculadora/POS: cada
+        // dígito que se tipea entra por los centavos y empuja lo demás hacia la
+        // izquierda — no hay que tipear el punto. `gridData` sigue guardando el
+        // valor sin comas de miles; el agrupado es solo lo que se ve en el input.
+
+        // digitsToAmount: el núcleo puro. Recibe la cinta de dígitos tal como se
+        // fue tipeando (sin importar cuántos son "de mentira" por relleno) y arma
+        // el monto con exactamente 2 decimales.
+        check('digitsToAmount con un solo dígito llena los centavos', app.digitsToAmount('1'), '0.01');
+        check('digitsToAmount con dos dígitos', app.digitsToAmount('12'), '0.12');
+        check('digitsToAmount el tercer dígito empieza a mover la unidad', app.digitsToAmount('123'), '1.23');
+        check('digitsToAmount sigue empujando hacia los miles', app.digitsToAmount('1234567'), '12345.67');
+        check('digitsToAmount de un solo cero', app.digitsToAmount('0'), '0.00');
+        check('digitsToAmount no arrastra ceros a la izquierda', app.digitsToAmount('00123'), '1.23');
+
+        // groupThousands: agrupa la parte entera de a tres desde la derecha, para
+        // mostrar el resultado de digitsToAmount con separador de miles.
+        check('groupThousands agrupa de a tres desde la derecha', app.groupThousands('12345.67'), '12,345.67');
+        check('groupThousands sin agrupar bajo 4 dígitos', app.groupThousands('1.23'), '1.23');
+        check('groupThousands de vacío', app.groupThousands(''), '');
+        check('groupThousands agrupa varias veces', app.groupThousands('1000000.50'), '1,000,000.50');
+
+        // normalizeAmount: lo que se guarda en gridData cuando un monto llega ya
+        // armado desde afuera (pegado de Excel), en vez de tecleado dígito a
+        // dígito. Si la celda de origen tiene separador de miles —muy común en
+        // una planilla con montos de 4 cifras o más— la regla de validación lo
+        // rechazaría entero: no distingue "el separador de miles" de "el
+        // decimal", solo espera uno solo. normalizeAmount saca el de miles y se
+        // queda con el decimal, sea punto o coma.
+        check('normalizeAmount de vacío', app.normalizeAmount(''), '');
+        check('normalizeAmount sin separador de miles', app.normalizeAmount('500'), '500');
+        check('normalizeAmount con punto decimal, sin miles', app.normalizeAmount('150.00'), '150.00');
+        check('normalizeAmount saca la coma de miles', app.normalizeAmount('1,500.00'), '1500.00');
+        check('normalizeAmount saca varias comas de miles', app.normalizeAmount('12,645,000.76'), '12645000.76');
+        check('normalizeAmount estilo europeo: miles en punto, decimal en coma', app.normalizeAmount('1.500,00'), '1500.00');
+        check('normalizeAmount entero sin decimales', app.normalizeAmount('1500'), '1500');
+
+        // formatAmountDisplay: solo al crear la celda (createCellInput), a partir
+        // de lo que ya está en gridData — que puede traer coma decimal si llegó
+        // por pegado o por un guardado viejo (docs/estado.md; mismo caso que
+        // tests/pago-terceros.test.js:119 y tests/recaudacion-batch.test.js:98).
+        check('formatAmountDisplay de vacío', app.formatAmountDisplay(''), '');
+        check('formatAmountDisplay sin agrupar bajo 4 dígitos', app.formatAmountDisplay('500'), '500');
+        check('formatAmountDisplay con punto decimal', app.formatAmountDisplay('12645.76'), '12,645.76');
+        check('formatAmountDisplay con coma decimal (pegado o guardado)', app.formatAmountDisplay('12645,76'), '12,645.76');
+        check('formatAmountDisplay entero grande', app.formatAmountDisplay('1234567'), '1,234,567');
+        check('formatAmountDisplay caso de recaudacion-batch.test.js', app.formatAmountDisplay('1500,50'), '1,500.50');
     },
 };
