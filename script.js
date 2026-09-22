@@ -461,11 +461,15 @@ function applyMetadataDefaults() {
 // vacías de las columnas con defaultValue al cargar, no solo al crear la fila.
 // Sin esto el preseteo no aparecería en los datos guardados de antes.
 function applyColumnDefaults() {
-    const columns = (getActiveConfig().columns || []).filter(col => col.defaultValue);
+    const columns = getActiveConfig().columns || [];
     if (columns.length === 0) return;
     gridData.forEach((row, index) => {
         columns.forEach(col => {
-            if (!row[col.id]) row[col.id] = getColumnDefault(col, index);
+            // Una columna agregada después de que la fila ya estaba guardada en
+            // localStorage no tiene esta clave. Sin este paso queda `undefined`,
+            // y el input la muestra tal cual: el string "undefined", no vacía.
+            if (row[col.id] === undefined) row[col.id] = '';
+            if (col.defaultValue && !row[col.id]) row[col.id] = getColumnDefault(col, index);
         });
     });
 }

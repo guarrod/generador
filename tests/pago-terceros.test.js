@@ -169,6 +169,15 @@ module.exports = {
         check('con correo, el campo 20 lleva el pipe que pide el formato',
             linea({ correo: 'proveedor@mail.com' })[19], '|proveedor@mail.com');
 
+        // Una fila guardada antes de que existiera esta columna no trae la
+        // clave `correo`: applyColumnDefaults la tiene que dejar en '', no en
+        // `undefined` — si no, el input muestra el string "undefined" en vez
+        // del placeholder.
+        t.irA('pago_terceros');
+        t.setGrid([{ ...BASE }]);
+        t.app.applyColumnDefaults();
+        check('fila vieja sin la columna correo: applyColumnDefaults la deja vacía', t.getGrid()[0].correo, '');
+
         // ── Los ceros a la izquierda los pone el generador ──────────────────
         // Excel se los come a todo lo que le parezca un número. Pedirle al
         // usuario que los reponga a mano es pedirle que arregle una planilla
