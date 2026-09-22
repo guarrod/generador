@@ -131,7 +131,11 @@ const APP_CONFIG = {
                 // en un campo de texto es una tabulación —no una coma—: la coma
                 // es un carácter normal de una razón social ("Proveedor, S.A.").
                 { id: 'nombre', label: 'Nombre Beneficiario', placeholder: 'Proveedor S.A.', rule: /^[^\t]{1,40}$/, error: 'Campo 14 · Alfanumérico/40' },
-                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^\t]{1,200}$/, error: 'Campo 19 · Alfanumérico/200. Es lo que se imprime como nº de factura en la notificación' }
+                { id: 'referencia', label: 'Referencia', placeholder: 'Nº de factura', rule: /^[^\t]{1,200}$/, error: 'Campo 19 · Alfanumérico/200. Es lo que se imprime como nº de factura en la notificación' },
+                // Opcional: si se carga, sale en el campo 20 con el pipe que pide el
+                // formato para la notificación al beneficiario (`|proveedor@mail.com`).
+                // Vacío, el campo 20 sale en blanco y el banco no manda ese correo.
+                { id: 'correo', label: 'Correo Beneficiario', placeholder: 'Opcional (proveedor@mail.com)', rule: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, error: 'Campo 20 · Opcional. Si lo llenas, formato usuario@mail.com', optional: true, exportValue: value => formatTerceroCorreo(value) }
             ],
             // Las 20 posiciones del formato, en orden. Las que la grilla no pide
             // se arman acá; las que sí, salen por getExportValue para no duplicar
@@ -158,7 +162,7 @@ const APP_CONFIG = {
                     '',                                                   // 17 · Teléfono
                     '',                                                   // 18 · Localidad de pago
                     campo('referencia'),                                  // 19
-                    '',                                                   // 20 · Referencia Adicional
+                    campo('correo'),                                      // 20 · Referencia Adicional (correo, con el pipe que pide el formato)
                 ].join('\t');
             },
             recommendations: {
@@ -172,10 +176,11 @@ const APP_CONFIG = {
                     { label: 'Tipo de identificación', html: `Selecciona el documento del beneficiario:<br>${chip('C')} Cédula · ${chip('R')} RUC · ${chip('P')} Pasaporte.` },
                     { label: 'N.º de identificación', html: `Ingresa la identificación del beneficiario: Cédula de 10 dígitos, RUC de 13 dígitos o Pasaporte de hasta 13 caracteres.<br>Si una cédula perdió el 0 inicial al copiarla desde Excel, lo completaremos automáticamente.<br>${chip('912378320')} → ${chip('0912378320')}` },
                     { label: 'Nombre del beneficiario', html: `Ingresa el nombre completo o razón social del beneficiario. Máximo 40 caracteres.` },
-                    { label: 'Referencia', html: `Ingresa el número de factura o una referencia que te permita identificar el pago. Máximo 200 caracteres.` }
+                    { label: 'Referencia', html: `Ingresa el número de factura o una referencia que te permita identificar el pago. Máximo 200 caracteres.` },
+                    { label: 'Correo Beneficiario', html: `Opcional. Si lo ingresas, el banco le enviará al beneficiario la notificación del pago a este correo. Si lo dejas vacío, no se envía esa notificación.<br>Formato: ${chip('proveedor@mail.com')}.` }
                 ],
                 tip: 'No necesitas completar los 20 campos del formato. Solo te pedimos los datos necesarios para cada pago. Al descargar el TXT, completaremos automáticamente los demás campos requeridos, como moneda, secuencial y datos técnicos del archivo.',
-                notice: 'La referencia adicional y la localidad de pago se enviarán vacías. Por este motivo, no se enviará el correo al beneficiario asociado a la referencia adicional. El nombre del archivo también se genera automáticamente con PAGOS_MULTICASH, la fecha y un número secuencial.'
+                notice: 'La localidad de pago se enviará siempre vacía. El nombre del archivo también se genera automáticamente con PAGOS_MULTICASH, la fecha y un número secuencial.'
             }
         },
         {
@@ -1430,6 +1435,12 @@ function formatTerceroAccount(value, row) {
 function formatTerceroCodigo(row, columns) {
     const origen = isCreditoCuenta(row) ? 'numero_cuenta' : 'numero_id';
     return getExportValue(findColumn(columns, origen), row);
+}
+
+// El campo 20 pide el pipe antes de la dirección para que el banco mande la
+// notificación al beneficiario. Vacío sale vacío: sin correo no hay pipe.
+function formatTerceroCorreo(value) {
+    return value ? `|${value}` : '';
 }
 
 function downloadText(content, filename) {

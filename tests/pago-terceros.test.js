@@ -34,11 +34,11 @@ module.exports = {
         const col = id => gen.columns.find(c => c.id === id);
 
         // ── Lo que la grilla pide ───────────────────────────────────────────
-        check('la grilla pide 9 de los 20 campos', gen.columns.length, 9);
+        check('la grilla pide 10 de los 20 campos', gen.columns.length, 10);
         check('ninguna columna oculta: lo que se ve es lo que se carga', gen.columns.filter(c => c.hidden).length, 0);
         check('las columnas están en el orden del formato', gen.columns.map(c => c.id), [
             'valor', 'forma_pago', 'codigo_institucion', 'tipo_cuenta', 'numero_cuenta',
-            'tipo_id', 'numero_id', 'nombre', 'referencia',
+            'tipo_id', 'numero_id', 'nombre', 'referencia', 'correo',
         ]);
         // Los campos que el formato fija o deriva ya no se cargan. Si alguno
         // vuelve a ser columna, su valor deja de salir de exportRow.
@@ -80,9 +80,9 @@ module.exports = {
             [17, 'Teléfono, en blanco', ''],
             [18, 'Localidad de pago, en blanco = cualquier localidad', ''],
             [19, 'Referencia', 'FAC-001-002-000001234'],
-            // Sin este campo el banco no manda la notificación por correo al
-            // beneficiario: es el único lugar del formato donde va la dirección.
-            [20, 'Referencia Adicional, en blanco', ''],
+            // BASE no trae correo: sin ese dato el banco no manda la notificación
+            // al beneficiario. Con correo cargado se prueba más abajo.
+            [20, 'Referencia Adicional (correo), en blanco si no se cargó', ''],
         ].forEach(([pos, nombre, esperado]) =>
             check(`campo ${String(pos).padStart(2)} · ${nombre}`, campos[pos - 1], esperado));
 
@@ -161,6 +161,13 @@ module.exports = {
         check('elegida CTA, la cuenta se valida', vale('numero_cuenta', '21512151', { forma_pago: 'CTA', codigo_institucion: '0017' }), true);
         check('elegida CHQ, la cuenta tiene que ir vacía', vale('numero_cuenta', '21512151', { forma_pago: 'CHQ' }), false);
         check('elegida CTA, el tipo de cuenta se exige', vale('tipo_cuenta', '', { forma_pago: 'CTA' }), false);
+
+        // ── Campo 20: correo opcional para notificar al beneficiario ────────
+        check('correo vacío vale: es opcional', vale('correo', '', {}), true);
+        check('correo con formato inválido no vale', vale('correo', 'no-es-un-correo', {}), false);
+        check('sin correo, el campo 20 sale en blanco', linea({})[19], '');
+        check('con correo, el campo 20 lleva el pipe que pide el formato',
+            linea({ correo: 'proveedor@mail.com' })[19], '|proveedor@mail.com');
 
         // ── Los ceros a la izquierda los pone el generador ──────────────────
         // Excel se los come a todo lo que le parezca un número. Pedirle al

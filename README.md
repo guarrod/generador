@@ -96,10 +96,11 @@ Sigue el formato publicado por Banco Guayaquil, transcrito campo por campo en
 tenerlo al lado, porque la página del banco no se puede consultar de forma
 automática.
 
-**La grilla pide 9 de los 20 campos del formato: los que cambian de un
-beneficiario a otro.** Los otros 11 los completa el generador al exportar — el
-formato los fija, los deriva de otro campo de la misma línea o los acepta en
-blanco. Las 20 posiciones salen igual y en su orden: lo que cambia es quién las
+**La grilla pide 10 de los 20 campos del formato: los que cambian de un
+beneficiario a otro, más el correo opcional para notificarle el pago.** Los
+otros 10 los completa el generador al exportar — el formato los fija, los
+deriva de otro campo de la misma línea o los acepta en blanco. Las 20
+posiciones salen igual y en su orden: lo que cambia es quién las
 llena.
 
 Arriba de la grilla hay un campo general:
@@ -124,6 +125,7 @@ Y estas son las columnas:
 | Nº ID | Cédula 10 dígitos, RUC 13, pasaporte hasta 13. Si falta el cero de la provincia, se repone al exportar | Sí |
 | Nombre Beneficiario | Hasta 40 caracteres | Sí |
 | Referencia | Hasta 200 caracteres: el nº de factura | Sí |
+| Correo Beneficiario | Formato `usuario@mail.com`. Si se carga, sale en el campo 20 con el pipe (`|proveedor@mail.com`) y el banco le notifica el pago | No |
 
 Lo que el generador pone solo, en la posición que le toca:
 
@@ -137,15 +139,15 @@ Lo que el generador pone solo, en la posición que le toca:
 | 6 · Moneda | `USD`, la única moneda que define el formato |
 | 15, 16, 17 · Dirección, Ciudad, Teléfono | En blanco |
 | 18 · Localidad Pago | En blanco, que para el banco significa *cualquier localidad* |
-| 20 · Ref. Adicional | En blanco |
+| 20 · Ref. Adicional | La columna **Correo Beneficiario**, con el pipe agregado (`|proveedor@mail.com`). Vacía si no se cargó correo |
 
 > El secuencial se numera sobre las filas que van al archivo, así que una fila
 > vacía en el medio de la grilla no le deja un hueco.
 
-> **El archivo no pide notificación por correo al beneficiario.** Ese aviso viaja
-> en el campo 20 (`|proveedor@mail.com`) y es un dato de cada proveedor, así que
-> fuera de la grilla no hay dónde cargarlo: con el campo en blanco, el banco no
-> manda esos correos. Ver [`docs/estado.md`](docs/estado.md).
+> **La notificación por correo al beneficiario es opcional.** Viaja en el campo
+> 20 (`|proveedor@mail.com`), que ahora es la columna **Correo Beneficiario** de
+> la grilla: si se carga, el banco le avisa al beneficiario; si se deja vacía, no
+> manda ese correo. Ver [`docs/estado.md`](docs/estado.md).
 
 Reglas que dependen de la forma de pago, controladas en vivo:
 

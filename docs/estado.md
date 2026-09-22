@@ -89,18 +89,21 @@ aparezca.
 
 ## Decisiones conocidas
 
-- **La grilla de Pago a Terceros pide 9 de los 20 campos.** Los otros 11 los arma
-  `exportRow`: los que el formato fija (1 `PA`, 6 `USD`), los que deriva (3, el
-  secuencial; 5, el código) y los opcionales, que viajan vacíos (4, 15, 16, 17,
-  18 y 20). Las 20 posiciones salen igual. Consecuencias que conviene tener
-  presentes:
-  - **El banco no le avisa por correo al beneficiario.** Ese aviso viaja en el
-    campo 20 (`|proveedor@mail.com`), el único lugar del formato donde va la
-    dirección. Es un dato de cada proveedor, no del archivo, así que —a
-    diferencia de la cuenta de la empresa— no se puede reponer con un campo
-    general: para volver a mandarlos, el campo 20 tiene que ser columna otra vez.
-    Ya pasó una vez: el commit `9eeb199` revirtió un cambio parecido por este
-    motivo.
+- **La grilla de Pago a Terceros pide 10 de los 20 campos.** Los otros 10 los
+  arma `exportRow`: los que el formato fija (1 `PA`, 6 `USD`), los que deriva (3,
+  el secuencial; 5, el código) y los que viajan vacíos salvo que se carguen (4,
+  15, 16, 17 y 18 siempre vacíos; 20 opcional, ver abajo). Las 20 posiciones
+  salen igual. Consecuencias que conviene tener presentes:
+  - **El correo del beneficiario (campo 20) sí es columna, a propósito.**
+    `formatTerceroCorreo()` le agrega el pipe al exportar
+    (`proveedor@mail.com` sale `|proveedor@mail.com`); vacío, el campo sale
+    vacío y el banco no manda la notificación. Es un dato de cada proveedor, no
+    del archivo, así que —a diferencia de la cuenta de la empresa— no se podía
+    reponer con un campo general: tenía que ser columna. El commit `9eeb199`
+    ya había revertido un intento de esconder este campo por el mismo motivo;
+    esta vez se agregó como columna nueva (`correo`) en vez de deshacer el
+    ocultamiento de las 20 originales, así que la grilla se queda en 10 campos,
+    no en 20 (2026-09-22).
   - **La cuenta de la empresa es del archivo, no de la fila.** El formato la
     define por línea (campo 2), pero es siempre la misma: la que se debita. Al
     subirla a campo general se carga una vez y desaparece la posibilidad de que

@@ -69,9 +69,9 @@ separador", con el largo de la tabla, y no un alfanumérico estricto.
 
 ## Lo que la herramienta resuelve sola
 
-La grilla pide 9 de los 20 campos: los que cambian de un beneficiario a otro
-(7, 8, 9, 10, 11, 12, 13, 14 y 19). Los otros 11 los completa el generador al
-exportar, en su posición:
+La grilla pide 10 de los 20 campos: los 9 que cambian de un beneficiario a otro
+(7, 8, 9, 10, 11, 12, 13, 14 y 19) más el correo opcional, que llena el 20. Los
+otros 10 los completa el generador al exportar, en su posición:
 
 | Campo | Con qué se llena | Por qué no se pide |
 | ----- | ---------------- | ------------------ |
@@ -83,16 +83,16 @@ exportar, en su posición:
 | 6 · Moneda | `USD` | Es la única moneda que define el artículo |
 | 15, 16, 17 · Dirección, Ciudad, Teléfono | En blanco | Opcionales |
 | 18 · Localidad de pago | En blanco | Con `CTA` el artículo la exige en blanco, y en ventanilla en blanco significa "cualquier localidad" |
-| 20 · Referencia Adicional | En blanco | Opcional |
 
-Tres cosas que el artículo deja ver y conviene no perder:
+El campo 20 (Referencia Adicional) es el único de estos que sí es columna: la
+grilla lo pide como **Correo Beneficiario**, y `formatTerceroCorreo()` le agrega
+el pipe al exportar (`proveedor@mail.com` sale `|proveedor@mail.com`). Vacío,
+sale vacío.
+
+Dos cosas que el artículo deja ver y conviene no perder:
 
 - **El campo 5 puede no entrar en su propio largo.** Está declarado en
   Alfanumérico/20, pero se deriva del 11, que admite hasta 30 en otra
   institución. Ver [estado.md](estado.md).
-- **Con el campo 20 en blanco no hay notificación por correo.** Es el único lugar
-  del formato donde va la dirección del beneficiario (`|proveedor@mail.com`), y
-  como es un dato de cada proveedor no se puede reponer desde afuera de la
-  grilla. Ver [estado.md](estado.md).
 - El `NN` del nombre **no es un campo del registro**: es parte del nombre del
   archivo, así que se edita en el campo del nombre, no en la grilla.
