@@ -628,7 +628,7 @@ function renderHeader() {
     }
     gridHeader.innerHTML = getVisibleColumns(gen).map(col =>
         `<th class="cell text-left font-bold border-b border-slate-200 dark:border-border text-slate-500 dark:text-text-muted text-[12px] uppercase tracking-wider${col.width ? ` ${col.width}` : ''}">${col.label}</th>`
-    ).join('');
+    ).join('') + '<th class="cell border-b border-slate-200 dark:border-border w-10"></th>';
 }
 
 function renderPlaceholder() {
@@ -754,9 +754,34 @@ function renderGrid() {
             tr.appendChild(td);
         });
 
+        const tdDelete = document.createElement('td');
+        tdDelete.className = 'border-b border-slate-200 dark:border-border p-0 text-center';
+        const btnDelete = document.createElement('button');
+        btnDelete.type = 'button';
+        btnDelete.title = 'Eliminar fila';
+        btnDelete.className = 'p-2 rounded-md text-slate-400 dark:text-white/30 hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-400 transition-colors';
+        btnDelete.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>';
+        btnDelete.addEventListener('click', () => deleteRow(rowIndex));
+        tdDelete.appendChild(btnDelete);
+        tr.appendChild(tdDelete);
+
         gridBody.appendChild(tr);
     });
+    // Los <i data-lucide> del botón de eliminar se agregan en cada render, así
+    // que hay que volver a pedirle a lucide que los convierta en SVG.
+    lucide.createIcons();
     validateGrid();
+}
+
+// Splice reindexa el resto de las filas hacia arriba, así que exportRow —que
+// numera el secuencial por posición— no deja huecos. A diferencia de
+// addRows(), acá sí hace falta updateStats(): borrar puede sacar un registro
+// válido y cambiar el conteo (y el total, en Recaudación Batch).
+function deleteRow(index) {
+    gridData.splice(index, 1);
+    renderGrid();
+    saveToStorage();
+    updateStats();
 }
 
 function updateCell(rowIndex, colId, value) {
