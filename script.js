@@ -59,9 +59,9 @@ const APP_CONFIG = {
         // campo en blanco el banco no manda esos correos. Ver docs/estado.md.
         {
             id: 'pago_terceros',
-            label: 'Pago a Terceros',
-            title: 'Generador de Pago a Terceros (Pagar por archivo)',
-            description: 'Carga lo que cambia en cada beneficiario. Los campos que el formato fija o deriva los completa el generador al exportar.',
+            label: 'Pago a Terceros y Nómina',
+            title: 'Generador de Archivo de Pago a Terceros y Nómina',
+            description: 'Genera el archivo TXT para Pagos por Archivo para pagar a tus proveedores y colaboradores.',
             storageKey: 'bg_gen_pago_terceros_data',
             metadataKey: 'bg_gen_pago_terceros_metadata',
             secuenciaKey: 'bg_gen_pago_terceros_secuencia',
